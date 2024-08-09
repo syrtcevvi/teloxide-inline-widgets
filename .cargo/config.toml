@@ -1,0 +1,10 @@
+[alias]
+# To test docs locally run: cargo docs --open
+docs = """doc
+--all-features
+-Zrustdoc-scrape-examples
+"""
+
+[build]
+# Necessary for feature flags in the documentation
+rustdocflags = ["--cfg", "docsrs"]

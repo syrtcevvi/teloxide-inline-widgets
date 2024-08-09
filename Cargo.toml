@@ -16,6 +16,10 @@ license = "MIT"
 homepage = "https://github.com/syrtcevvi/teloxide-inline-widgets"
 repository = "https://github.com/syrtcevvi/teloxide-inline-widgets"
 
+[features]
+# Currently used for building docs for `docs.rs` to add `This is supported on feature="..." only.`
+nightly = []
+
 [dependencies]
 derive_more = { version = "0.99.18", default-features = false, features = ["display"] }
 # TODO optional
@@ -31,3 +35,21 @@ pretty_env_logger = "0.5.0"
 rstest = "0.22.0"
 teloxide = "0.12.2"
 tokio = { version = "1.39.1", features = ["rt-multi-thread", "macros"] }
+
+[[example]]
+name = "radio_list"
+doc-scrape-examples = true
+
+[[example]]
+name = "checkbox_list"
+doc-scrape-examples = true
+
+[[example]]
+name = "multiple_widgets"
+doc-scrape-examples = true
+
+[package.metadata.docs.rs]
+# document all features
+all-features = true
+rustdoc-args = ["--cfg", "docsrs", "-Znormalize-docs"]
+cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]

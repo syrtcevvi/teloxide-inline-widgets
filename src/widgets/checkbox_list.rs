@@ -20,6 +20,7 @@ use self::checkbox_list_item_index::CheckboxListItemIndex;
 pub use self::settings::CheckboxListSettings;
 use crate::traits::{Component, UserDefinedWidget, WidgetContainer};
 
+/// Checkbox list widget
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CheckboxList<T, S> {
     // Maybe simple Vec?
