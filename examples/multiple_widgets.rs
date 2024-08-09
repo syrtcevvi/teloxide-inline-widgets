@@ -2,8 +2,6 @@
     This example demonstrates how to use multiple widgets (`RadioList` and `CheckboxList`) within
     the user-define widget.
 */
-use std::future::Future;
-
 use derive_more::Display;
 use teloxide::{dispatching::dialogue::InMemStorage, prelude::*, types::InlineKeyboardMarkup};
 use teloxide_inline_widgets::{
@@ -95,15 +93,10 @@ impl UserDefinedWidget for ComplexWidget {
         .into()
     }
 
-    fn update_state(
-        self,
-        dialogue: &Self::Dialogue,
-    ) -> impl Future<Output = Result<(), Self::Err>> + Send {
-        async move {
-            dialogue.update(State::EditingComplexWidget(self)).await?;
+    async fn update_state(self, dialogue: &Self::Dialogue) -> Result<(), Self::Err> {
+        dialogue.update(State::EditingComplexWidget(self)).await?;
 
-            Ok(())
-        }
+        Ok(())
     }
 }
 

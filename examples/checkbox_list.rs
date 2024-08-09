@@ -1,8 +1,6 @@
 /*
     This example demonstrates how to use the `CheckboxList` widget.
 */
-use std::future::Future;
-
 use derive_more::Display;
 use serde::{Deserialize, Serialize};
 use teloxide::{dispatching::dialogue::InMemStorage, prelude::*, types::InlineKeyboardMarkup};
@@ -63,15 +61,10 @@ impl UserDefinedWidget for Widget {
         InlineKeyboardMarkup::new(self.options.keyboard())
     }
 
-    fn update_state(
-        self,
-        dialogue: &Self::Dialogue,
-    ) -> impl Future<Output = Result<(), Self::Err>> + Send {
-        async move {
-            dialogue.update(State::EditingWidget(self)).await?;
+    async fn update_state(self, dialogue: &Self::Dialogue) -> Result<(), Self::Err> {
+        dialogue.update(State::EditingWidget(self)).await?;
 
-            Ok(())
-        }
+        Ok(())
     }
 }
 
