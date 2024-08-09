@@ -3,7 +3,7 @@ name = "teloxide-inline-widgets"
 authors = ["Сырцев Вадим Игоревич <syrtcevvi@gmail.com>"]
 version = "0.1.0"
 edition = "2021"
-description = ""
+description = "Library for creation of inline-keyboard widgets for teloxide framework"
 keywords = [
     "teloxide",
     "inline-keyboard",
