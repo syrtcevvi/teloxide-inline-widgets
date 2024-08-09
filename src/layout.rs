@@ -33,16 +33,16 @@ impl<'a> Layout<'a> {
     }
 
     // FIXME: , empty_button_icon: &str + callback_data, noop ignore
-    fn create_empty_inline_keyboard((rows, columns): (u8, u8)) -> Vec<Vec<InlineKeyboardButton>> {
-        std::iter::repeat(
-            // FIXME: allow customize noop buttons
-            std::iter::repeat(InlineKeyboardButton::callback("✖️", "noop"))
-                .take(columns as usize)
-                .collect(),
-        )
-        .take(rows as usize)
-        .collect()
-    }
+    // fn create_empty_inline_keyboard((rows, columns): (u8, u8)) -> Vec<Vec<InlineKeyboardButton>> {
+    //     std::iter::repeat(
+    //         // FIXME: allow customize noop buttons
+    //         std::iter::repeat(InlineKeyboardButton::callback("✖️", "noop"))
+    //             .take(columns as usize)
+    //             .collect(),
+    //     )
+    //     .take(rows as usize)
+    //     .collect()
+    // }
 }
 
 pub enum LayoutOrientation {
