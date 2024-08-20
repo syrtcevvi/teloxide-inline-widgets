@@ -1,81 +1,86 @@
-mod radio_list_item_index;
-mod settings;
-
-use std::{
-    convert::From,
-    fmt::{Debug, Display},
-    marker::PhantomData,
-};
+use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
 use teloxide::{
     dispatching::UpdateHandler,
-    prelude::*,
-    types::{InlineKeyboardButton, InlineKeyboardMarkup, MessageId, ReplyMarkup},
+    dptree,
+    prelude::Requester,
+    types::{CallbackQuery, ChatId, InlineKeyboardButton, InlineKeyboardMarkup, MessageId},
 };
 
-use crate::traits::{Component, UserDefinedWidget, WidgetContainer};
-use radio_list_item_index::RadioListItemIndex;
-pub use settings::RadioListSettings;
+use crate::traits::{InlineWidget, WidgetContainer};
 
 /// Radio list widget
+// FIXME add gif to docs?
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct RadioList<T, S> {
-    // Maybe simple Vec?
-    items: SmallVec<[T; 4]>,
+pub struct RadioList<T> {
+    items: Vec<T>,
     active_item_i: Option<usize>,
-    #[serde(skip)]
-    settings: PhantomData<S>,
 }
 
-impl<T, S> RadioList<T, S>
-where
-    T: Display,
-    S: RadioListSettings,
-{
+/// Index of a [`RadioList`] item. Used as a unique type in the [`dptree`]-handler schema
+#[derive(Debug, Clone)]
+struct RadioListItemIndex(pub usize);
+
+impl<T> RadioList<T> {
+    /// Creates new [`RadioList`] instance from a collection with optionally active item.
+    ///
+    /// Panics if the `active_item_i` index is out of bounds
     pub fn new(items: impl IntoIterator<Item = T>, active_item_i: Option<usize>) -> Self {
+        let items = Vec::from_iter(items);
+
+        if items.is_empty() {
+            log::warn!("RadioList is empty");
+        }
+
+        if let Some(i) = active_item_i {
+            assert!(i < items.len());
+        }
+
         Self {
-            items: SmallVec::from_iter(items),
+            items: Vec::from_iter(items),
             active_item_i,
-            settings: PhantomData,
         }
     }
 
+    /// Returns the reference to the active item
     pub fn active_item(&self) -> Option<&T> {
-        if let Some(active_item_i) = self.active_item_i {
-            return Some(&self.items[active_item_i]);
-        }
-        None
+        self.active_item_i.map(|i| &self.items[i])
     }
 
-    // FIXME
-    pub fn set_active(&mut self, i: usize) -> bool {
-        let active_changed = self.active_item_i == Some(i);
+    /// Returns the index of the active item
+    pub fn active_item_i(&self) -> Option<usize> {
+        self.active_item_i
+    }
+
+    /// Sets the active item by index
+    ///
+    /// Panics if the index is out of bounds
+    pub fn set_active(&mut self, i: usize) {
+        assert!(i < self.items.len());
 
         self.active_item_i = Some(i);
-        active_changed
     }
 
+    /// Returns the slice of items contained within the [`RadioList`]
     pub fn items(&self) -> &[T] {
         &self.items
     }
 
-    pub fn schema<W>() -> UpdateHandler<W::Err>
+    // TODO more helpful functions
+
+    // TODO Add tests
+    pub fn schema<W>(prefix: &'static str) -> UpdateHandler<W::Err>
     where
-        W: 'static + Clone + Send + Sync + UserDefinedWidget + WidgetContainer<Self>,
+        W: 'static + Clone + Send + Sync + InlineWidget + WidgetContainer<Self>,
         W::Bot: 'static + Clone + Send + Sync,
         W::Dialogue: 'static + Clone + Send + Sync,
     {
         dptree::entry()
-            .filter_map(|cq: CallbackQuery| {
-                if let Some(data) = cq.data {
-                    // TODO ignore if index doesn't change
-                    if data.starts_with(S::prefix()) {
-                        return Some(RadioListItemIndex(data[S::prefix().len()..].parse().ok()?));
-                    }
-                }
-                None
+            .filter_map(move |cq: CallbackQuery| {
+                Some(RadioListItemIndex(
+                    cq.data?.strip_prefix(prefix)?.parse().ok()?,
+                ))
             })
             .filter_map(|cq: CallbackQuery| cq.message.map(|msg| (msg.chat.id, msg.id, cq.id)))
             .endpoint(
@@ -86,7 +91,13 @@ where
                  RadioListItemIndex(i): RadioListItemIndex| async move {
                     bot.answer_callback_query(cq_id).await?;
 
-                    widget.get_widget().set_active(i);
+                    let rl = widget.get_widget();
+                    if rl.active_item_i == Some(i) {
+                        log::warn!("User clicked on the already selected radio button");
+                        return Ok(());
+                    }
+
+                    rl.set_active(i);
                     // FIXME: Probably allow some callback here? Or after
 
                     // It's safe to update the view (keyboard) before the state if updates are processed
@@ -99,26 +110,35 @@ where
             )
     }
 
-    pub fn inline_keyboard_markup(&self) -> InlineKeyboardMarkup {
-        let mut keyboard: Vec<Vec<InlineKeyboardButton>> = Vec::with_capacity(S::size().0 as usize);
+    /// Creates the [`InlineKeyboardMarkup`] for a [`RadioList`] widget with specified
+    /// `prefix` and size.
+    ///
+    /// It's not supposed to be used directly
+    pub fn inline_keyboard_markup(
+        &self,
+        prefix: &str,
+        (rows, columns): (u8, u8),
+    ) -> InlineKeyboardMarkup
+    where
+        T: Display,
+    {
+        let mut keyboard: Vec<Vec<InlineKeyboardButton>> = Vec::with_capacity(rows as usize);
 
         // TODO order (RowMajor, Column Major)?
-        for (row_i, chunk) in self.items.chunks(S::size().1 as usize).enumerate() {
+        for (row_i, chunk) in self.items.chunks(columns as usize).enumerate() {
             let row = chunk
                 .iter()
                 .enumerate()
                 .map(|(column_i, item)| {
-                    let i = (row_i * S::size().1 as usize) + column_i;
+                    let i = (row_i * columns as usize) + column_i;
                     let icon = if self.active_item_i == Some(i) {
-                        S::active_icon()
+                        // TODO parameter?
+                        "🟢"
                     } else {
-                        S::inactive_icon().unwrap_or("")
+                        ""
                     };
 
-                    InlineKeyboardButton::callback(
-                        format!("{} {}", icon, item),
-                        format!("{}{}", S::prefix(), i),
-                    )
+                    InlineKeyboardButton::callback(format!("{icon} {item}"), format!("{prefix}{i}"))
                 })
                 .collect();
 
@@ -129,26 +149,35 @@ where
     }
 }
 
-impl<T, S> From<&RadioList<T, S>> for ReplyMarkup
-where
-    T: Display,
-    S: RadioListSettings,
-{
-    fn from(value: &RadioList<T, S>) -> Self {
-        ReplyMarkup::InlineKeyboard(value.inline_keyboard_markup())
+impl<T> From<Vec<T>> for RadioList<T> {
+    fn from(value: Vec<T>) -> Self {
+        RadioList::new(value, None)
     }
 }
 
-impl<T, S> Component for RadioList<T, S>
-where
-    T: Display,
-    S: RadioListSettings,
-{
-    fn size(&self) -> (u8, u8) {
-        S::size()
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn radio_list() {
+        let mut rl = RadioList::new([1, 2], None);
+        assert!(rl.active_item().is_none());
+        rl.set_active(1);
+        assert_eq!(rl.active_item(), Some(&2));
     }
 
-    fn keyboard(&self) -> Vec<Vec<InlineKeyboardButton>> {
-        self.inline_keyboard_markup().inline_keyboard
+    #[test]
+    #[should_panic]
+    fn active_item_i_out_of_bounds() {
+        let _rl: RadioList<i32> = RadioList::new([1, 2, 3], Some(3));
+    }
+
+    #[test]
+    #[should_panic]
+    fn i_out_of_bounds() {
+        let mut rl = RadioList::new([1, 2, 3], None);
+
+        rl.set_active(3);
     }
 }
