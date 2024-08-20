@@ -1,80 +1,81 @@
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup, ReplyMarkup};
 
-use crate::traits::Component;
-
-pub struct Layout<'a> {
-    pub widgets: &'a [&'a dyn Component],
+/// Allows to combine widgets either `horizontally` or `vertically`
+///
+/// The actual size of the whole [`Layout`] is determined by the size of provided [`InlineKeyboardMarkup`]s
+pub struct Layout {
+    pub markups: Vec<InlineKeyboardMarkup>,
     pub orientation: LayoutOrientation,
 }
 
-impl<'a> Layout<'a> {
-    pub fn new(widgets: &'a [&'a dyn Component], orientation: LayoutOrientation) -> Self {
+impl Layout {
+    /// Creates a new layout with widgets' inline keyboard markups
+    pub fn new(markups: Vec<InlineKeyboardMarkup>, orientation: LayoutOrientation) -> Self {
         Self {
-            widgets,
+            markups,
             orientation,
         }
     }
 
+    /// Returns the size of the [`Layout`]
     pub fn size(&self) -> (u8, u8) {
         use LayoutOrientation::*;
 
-        self.widgets
-            .iter()
-            .fold((0, 0), |required_size, widget| match self.orientation {
-                Horizontal => (
-                    required_size.0.max(widget.size().0),
-                    required_size.1 + widget.size().1,
-                ),
-                Vertical => (
-                    required_size.0 + widget.size().0,
-                    required_size.1.max(widget.size().1),
-                ),
-            })
+        self.markups.iter().fold((0, 0), |required_size, markup| {
+            let (rows, columns) = Self::markup_size(markup);
+            match self.orientation {
+                Horizontal => (required_size.0.max(rows), required_size.1 + columns),
+                Vertical => (required_size.0 + rows, required_size.1.max(columns)),
+            }
+        })
     }
 
-    // FIXME: , empty_button_icon: &str + callback_data, noop ignore
-    // fn create_empty_inline_keyboard((rows, columns): (u8, u8)) -> Vec<Vec<InlineKeyboardButton>> {
-    //     std::iter::repeat(
-    //         // FIXME: allow customize noop buttons
-    //         std::iter::repeat(InlineKeyboardButton::callback("✖️", "noop"))
-    //             .take(columns as usize)
-    //             .collect(),
-    //     )
-    //     .take(rows as usize)
-    //     .collect()
-    // }
-}
+    fn markup_size(markup: &InlineKeyboardMarkup) -> (u8, u8) {
+        // Not as accurate as I wanted, but..it works?
+        (
+            markup.inline_keyboard.len() as u8,
+            markup.inline_keyboard[0].len() as u8,
+        )
+    }
 
-pub enum LayoutOrientation {
-    Horizontal,
-    Vertical,
-}
-
-impl<'a> From<Layout<'a>> for InlineKeyboardMarkup {
-    fn from(value: Layout) -> Self {
-        let (rows, columns) = value.size();
-
-        let mut keyboard: Vec<Vec<InlineKeyboardButton>> = std::iter::repeat(
+    /// Creates an empty inline keyboard markup with specified number of rows and columns
+    fn empty_inline_keyboard_markup((rows, columns): (u8, u8)) -> InlineKeyboardMarkup {
+        InlineKeyboardMarkup::new(std::iter::repeat(
             // FIXME: allow customize noop buttons
             std::iter::repeat(InlineKeyboardButton::callback("✖️", "noop"))
                 .take(columns as usize)
                 .collect(),
         )
         .take(rows as usize)
-        .collect();
+        .collect::<Vec<Vec<_>>>())
+    }
+}
+
+/// Represents the orientation of a layout
+pub enum LayoutOrientation {
+    Horizontal,
+    Vertical,
+}
+
+impl From<Layout> for InlineKeyboardMarkup {
+    fn from(layout: Layout) -> Self {
+        let (rows, columns) = layout.size();
+
+        let mut keyboard: Vec<Vec<InlineKeyboardButton>> = Layout::empty_inline_keyboard_markup((rows, columns))
+            .inline_keyboard;
 
         let (mut curr_i, mut curr_j) = (0_u8, 0_u8);
-        for widget in value.widgets {
-            // let (size, keyboard) = (widget.size(),);
+        for markup in layout.markups {
+            let size = Layout::markup_size(&markup);
 
-            for (row_i, row) in widget.keyboard().into_iter().enumerate() {
+            for (row_i, row) in markup.inline_keyboard.into_iter().enumerate() {
                 for (col_i, button) in row.into_iter().enumerate() {
                     keyboard[curr_i as usize + row_i][curr_j as usize + col_i] = button;
                 }
             }
-            match value.orientation {
-                LayoutOrientation::Horizontal => curr_j += widget.size().1,
-                LayoutOrientation::Vertical => curr_i += widget.size().0,
+            match layout.orientation {
+                LayoutOrientation::Horizontal => curr_j += size.1,
+                LayoutOrientation::Vertical => curr_i += size.0,
             }
         }
 
@@ -82,7 +83,7 @@ impl<'a> From<Layout<'a>> for InlineKeyboardMarkup {
     }
 }
 
-impl<'a> From<Layout<'a>> for ReplyMarkup {
+impl From<Layout> for ReplyMarkup {
     fn from(value: Layout) -> Self {
         ReplyMarkup::InlineKeyboard(value.into())
     }
@@ -95,48 +96,30 @@ mod tests {
 
     use super::*;
 
-    struct DummyWidget {
-        pub size: (u8, u8),
-    }
-
-    impl Component for DummyWidget {
-        fn size(&self) -> (u8, u8) {
-            self.size
-        }
-
-        fn keyboard(&self) -> Vec<Vec<InlineKeyboardButton>> {
-            vec![]
-        }
-    }
-
     #[rstest]
     #[case((
-        LayoutOrientation::Horizontal,
-        vec![(2, 2), (2, 2)]
+        vec![(2, 2), (2, 2)],
+        LayoutOrientation::Horizontal
     ), (2, 4))]
     #[case((
+        vec![(1, 3), (4, 2)],
         LayoutOrientation::Horizontal,
-        vec![(1, 3), (4, 2)]
     ), (4, 5))]
     #[case((
-        LayoutOrientation::Vertical,
-        vec![(2, 2), (2, 2)]
+        vec![(2, 2), (2, 2)],
+        LayoutOrientation::Vertical
     ), (4, 2))]
-    fn orientation(
-        #[case] init: (LayoutOrientation, Vec<(u8, u8)>),
+    // TODO more tests
+    fn layout(
+        #[case] init: (Vec<(u8, u8)>, LayoutOrientation),
         #[case] expected_size: (u8, u8),
     ) {
-        let widgets: Vec<DummyWidget> = init
-            .1
+        let markups = init.0
             .into_iter()
-            .map(|size| DummyWidget { size })
-            .collect();
-        let widgets: &[&dyn Component] = &widgets
-            .iter()
-            .map(|v| v as &dyn Component)
+            .map(|size| Layout::empty_inline_keyboard_markup(size))
             .collect::<Vec<_>>();
 
-        let layout = Layout::new(widgets, init.0);
+        let layout = Layout::new(markups, init.1);
 
         assert_eq!(expected_size, layout.size());
     }
