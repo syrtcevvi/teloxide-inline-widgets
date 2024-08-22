@@ -17,7 +17,7 @@ env:
   RUSTUP_MAX_RETRIES: 10
 
   rust_nightly: nightly-2024-07-03
-  rust_msrv: 1.79.0
+  rust_msrv: 1.81.0
 
   CI: 1
 
