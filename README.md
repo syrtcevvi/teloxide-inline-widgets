@@ -10,24 +10,25 @@
   <a href="https://crates.io/crates/teloxide-inline-widgets">
     <img alt="Crates.io Version" src="https://img.shields.io/crates/v/teloxide-inline-widgets">
   </a>
+  <img alt="Static Badge" src="https://img.shields.io/badge/teloxide-0.12.2-orange">
   <img alt="Crates.io Total Downloads" src="https://img.shields.io/crates/d/teloxide-inline-widgets">
 </div>
 
 The library for (*easy*?) creation of the inline-keyboard widgets for the [`teloxide`](https://github.com/teloxide/teloxide) framework.
 
-There're some [examples](examples/README.md) available!
+There're some [examples](crates/teloxide-inline-widgets/examples/README.md) available!
 
 ## Available widgets
 ### Radio List
-![radio list example](examples/media/radio_list.gif)
+![radio list example](crates/teloxide-inline-widgets/examples/media/radio_list.gif)
 
 ### Checkbox List
-![checkbox list example](examples/media/checkbox_list.gif)
+![checkbox list example](crates/teloxide-inline-widgets/examples/media/checkbox_list.gif)
 
 ## Others
-One of the most desired thing is to combine widgets together. Currently, the library supports the simple `Layout` method which allows to combine `base-widgets` within single keyboard.
+One of the most desired thing is to combine widgets together. Currently, the library supports the simple `Layout` method which allows to combine `base-widgets` within single keyboard markup.
 
-![multiple widgets](examples/media/multiple_widgets.gif)
+![multiple widgets](crates/teloxide-inline-widgets/examples/media/multiple_widgets.gif)
 
 ## Roadmap
 - [ ] Simplify API with `proc-macros`
