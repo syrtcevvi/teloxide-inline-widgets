@@ -1,4 +1,5 @@
 mod inline_widget;
+mod schemes;
 
 use proc_macro::TokenStream;
 
