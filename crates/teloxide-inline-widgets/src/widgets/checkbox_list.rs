@@ -20,13 +20,13 @@ pub struct CheckboxList<T> {
 pub struct CheckboxListItemIndex(pub usize);
 
 impl<T> CheckboxList<T> {
-    /// Creates new [`CheckboxList`] instance from a collection of (`bool`, `T`) items.
+    /// Creates new [`CheckboxList`] instance from a collection of (`bool`, `T`)
+    /// items.
     ///
-    /// If you want to create an instance with selected values, pass _true_ with these values.
+    /// If you want to create an instance with selected values, pass _true_ with
+    /// these values.
     pub fn new(items: impl IntoIterator<Item = (bool, T)>) -> Self {
-        Self {
-            items: Vec::from_iter(items),
-        }
+        Self { items: Vec::from_iter(items) }
     }
 
     /// Toggles the selection of the item specified by the index
@@ -40,9 +40,7 @@ impl<T> CheckboxList<T> {
 
     /// Returns the iterator over the selected items in the [`CheckboxList`]
     pub fn selected_items(&self) -> impl Iterator<Item = &T> {
-        self.items
-            .iter()
-            .filter_map(|(selected, item)| if *selected { Some(item) } else { None })
+        self.items.iter().filter_map(|(selected, item)| if *selected { Some(item) } else { None })
     }
 
     pub fn schema<W>(prefix: &'static str) -> UpdateHandler<W::Err>
@@ -53,9 +51,7 @@ impl<T> CheckboxList<T> {
     {
         dptree::entry()
             .filter_map(move |cq: CallbackQuery| {
-                Some(CheckboxListItemIndex(
-                    cq.data?.strip_prefix(prefix)?.parse().ok()?,
-                ))
+                Some(CheckboxListItemIndex(cq.data?.strip_prefix(prefix)?.parse().ok()?))
             })
             .filter_map(|cq: CallbackQuery| cq.message.map(|msg| (msg.chat.id, msg.id, cq.id)))
             .endpoint(
@@ -67,8 +63,9 @@ impl<T> CheckboxList<T> {
                     bot.answer_callback_query(cq_id).await?;
 
                     widget.get_widget().toggle(i);
-                    // It's safe to update the view (keyboard) before the state if updates are processed
-                    // consistently in a single chat, so there is no races
+                    // It's safe to update the view (keyboard) before the state if updates are
+                    // processed consistently in a single chat, so there is no
+                    // races
                     widget.redraw(&bot, chat_id, message_id).await?;
                     widget.update_state(&dialogue).await?;
 

@@ -7,9 +7,11 @@ use teloxide::{
     types::{ChatId, InlineKeyboardMarkup, MessageId, ReplyMarkup},
 };
 
-/// Trait that allows to combine inline_widgets together within the `user-defined` one and provides a way to handle a widget's logic
+/// Trait that allows to combine inline_widgets together within the
+/// `user-defined` one and provides a way to handle a widget's logic
 ///
-/// Don't implement it manually, it's more convenient to use the [`#[derive(InlineWidget)`] macro
+/// Don't implement it manually, it's more convenient to use the
+/// [`#[derive(InlineWidget)`] macro
 pub trait InlineWidget {
     type Dialogue;
     type Bot: Sync + Requester;

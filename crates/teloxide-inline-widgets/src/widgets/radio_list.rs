@@ -18,12 +18,14 @@ pub struct RadioList<T> {
     active_item_i: Option<usize>,
 }
 
-/// Index of a [`RadioList`] item. Used as a unique type in the [`dptree`]-handler schema
+/// Index of a [`RadioList`] item. Used as a unique type in the
+/// [`dptree`]-handler schema
 #[derive(Debug, Clone)]
 struct RadioListItemIndex(pub usize);
 
 impl<T> RadioList<T> {
-    /// Creates new [`RadioList`] instance from a collection with optionally active item.
+    /// Creates new [`RadioList`] instance from a collection with optionally
+    /// active item.
     ///
     /// Panics if the `active_item_i` index is out of bounds
     pub fn new(items: impl IntoIterator<Item = T>, active_item_i: Option<usize>) -> Self {
@@ -37,10 +39,7 @@ impl<T> RadioList<T> {
             assert!(i < items.len());
         }
 
-        Self {
-            items: Vec::from_iter(items),
-            active_item_i,
-        }
+        Self { items: Vec::from_iter(items), active_item_i }
     }
 
     /// Returns the reference to the active item
@@ -78,9 +77,7 @@ impl<T> RadioList<T> {
     {
         dptree::entry()
             .filter_map(move |cq: CallbackQuery| {
-                Some(RadioListItemIndex(
-                    cq.data?.strip_prefix(prefix)?.parse().ok()?,
-                ))
+                Some(RadioListItemIndex(cq.data?.strip_prefix(prefix)?.parse().ok()?))
             })
             .filter_map(|cq: CallbackQuery| cq.message.map(|msg| (msg.chat.id, msg.id, cq.id)))
             .endpoint(
@@ -100,8 +97,9 @@ impl<T> RadioList<T> {
                     rl.set_active(i);
                     // FIXME: Probably allow some callback here? Or after
 
-                    // It's safe to update the view (keyboard) before the state if updates are processed
-                    // consistently in a single chat, so there is no races
+                    // It's safe to update the view (keyboard) before the state if updates are
+                    // processed consistently in a single chat, so there is no
+                    // races
                     widget.redraw(&bot, chat_id, message_id).await?;
                     widget.update_state(&dialogue).await?;
 
@@ -110,8 +108,8 @@ impl<T> RadioList<T> {
             )
     }
 
-    /// Creates the [`InlineKeyboardMarkup`] for a [`RadioList`] widget with specified
-    /// `prefix` and size.
+    /// Creates the [`InlineKeyboardMarkup`] for a [`RadioList`] widget with
+    /// specified `prefix` and size.
     ///
     /// It's not supposed to be used directly
     pub fn inline_keyboard_markup(

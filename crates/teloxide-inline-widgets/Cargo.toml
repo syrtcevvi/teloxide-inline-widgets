@@ -1,0 +1,55 @@
+[package]
+name = "teloxide-inline-widgets"
+authors = ["Сырцев Вадим Игоревич <syrtcevvi@gmail.com>"]
+version = "0.1.0"
+description = "Library for creation of inline-keyboard widgets for teloxide framework"
+
+documentation = "https://docs.rs/teloxide-inline-widgets"
+
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[features]
+# Currently used for building docs for `docs.rs` to add `This is supported on feature="..." only.`
+nightly = []
+
+[dependencies]
+teloxide-inline-widgets-macros = { path = "../teloxide-inline-widgets-macros" }
+
+derive_more = { version = "0.99.18", default-features = false, features = ["display"] }
+# TODO optional
+serde = { version = "1.0.204", features = ["derive"] }
+teloxide = { version = "0.12.2", default-features = false }
+log = "0.4.22"
+
+[dev-dependencies]
+derive_more = "0.99.18"
+log = "0.4.22"
+pretty_assertions = "1.4.0"
+pretty_env_logger = "0.5.0"
+rstest = "0.22.0"
+teloxide = "0.12.2"
+tokio = { version = "1.39.1", features = ["rt-multi-thread", "macros"] }
+
+[[example]]
+name = "radio_list"
+doc-scrape-examples = true
+
+[[example]]
+name = "checkbox_list"
+doc-scrape-examples = true
+
+[[example]]
+name = "multiple_widgets"
+doc-scrape-examples = true
+
+[package.metadata.docs.rs]
+# document all features
+all-features = true
+rustdoc-args = ["--cfg", "docsrs", "-Znormalize-docs"]
+cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
