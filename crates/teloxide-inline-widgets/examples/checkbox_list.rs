@@ -24,7 +24,7 @@ enum State {
 #[inline_widget(err_ty = Error, bot_ty = Bot, dialogue_ty = Dialogue)]
 #[inline_widget(state = State::ChoosingVariants)]
 struct ChooseVariantsWidget {
-    #[component(prefix = "v_", rows = 3, columns = 1)]
+    #[checkbox_list(prefix = "v_", rows = 3, columns = 1)]
     pub variants: CheckboxList<Variant>,
 }
 

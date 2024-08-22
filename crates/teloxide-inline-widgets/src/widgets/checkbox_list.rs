@@ -74,6 +74,10 @@ impl<T> CheckboxList<T> {
             )
     }
 
+    /// Creates the [`InlineKeyboardMarkup`] for a [`CheckboxList`] widget with
+    /// specified callback query `prefix` and size.
+    ///
+    /// It's not supposed to be used directly
     pub fn inline_keyboard_markup(
         &self,
         prefix: &'static str,

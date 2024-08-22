@@ -109,12 +109,12 @@ impl<T> RadioList<T> {
     }
 
     /// Creates the [`InlineKeyboardMarkup`] for a [`RadioList`] widget with
-    /// specified `prefix` and size.
+    /// specified callback query `prefix` and size.
     ///
     /// It's not supposed to be used directly
     pub fn inline_keyboard_markup(
         &self,
-        prefix: &str,
+        prefix: &'static str,
         (rows, columns): (u8, u8),
     ) -> InlineKeyboardMarkup
     where

@@ -25,7 +25,7 @@ enum State {
 #[inline_widget(err_ty = Error, bot_ty = Bot, dialogue_ty = Dialogue)]
 #[inline_widget(state = State::ChoosingFruit)]
 struct ChooseFruitWidget {
-    #[component(prefix = "f_", rows = 1, columns = 3)]
+    #[radio_list(prefix = "f_", rows = 1, columns = 3)]
     pub fruits: RadioList<Fruit>,
 }
 

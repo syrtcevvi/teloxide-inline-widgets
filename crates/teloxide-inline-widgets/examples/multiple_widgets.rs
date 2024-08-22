@@ -4,7 +4,7 @@
 */
 use derive_more::Display;
 use teloxide::{dispatching::dialogue::InMemStorage, prelude::*};
-use teloxide_inline_widgets::{prelude::*, CheckboxList, RadioList};
+use teloxide_inline_widgets::{prelude::*, Button, CheckboxList, RadioList};
 
 type Bot = teloxide::Bot;
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -24,10 +24,12 @@ enum State {
 #[inline_widget(err_ty = Error, bot_ty = Bot, dialogue_ty = Dialogue)]
 #[inline_widget(state = State::EditingComplexWidget, layout_orientation =  LayoutOrientation::Horizontal)]
 struct ComplexWidget {
-    #[component(prefix = "s_", rows = 4, columns = 1)]
+    #[radio_list(prefix = "s_", rows = 4, columns = 1)]
     pub shapes: RadioList<Shape>,
-    #[component(prefix = "o_", rows = 3, columns = 1)]
+    #[checkbox_list(prefix = "o_", rows = 3, columns = 1)]
     pub options: CheckboxList<Variant>,
+    #[button(data = "sb", click = process_save)]
+    pub save_button: Button,
 }
 
 #[derive(Debug, Display, Clone)]
@@ -67,7 +69,7 @@ fn schema() -> UpdateHandler {
         .branch(
             Update::filter_message()
                 .enter_dialogue::<Message, Storage, State>()
-                .endpoint(send_complex_widget),
+                .branch(dptree::case![State::Idle].endpoint(send_complex_widget)),
         )
         .branch(
             Update::filter_callback_query()
@@ -84,13 +86,27 @@ async fn send_complex_widget(bot: Bot, dialogue: Dialogue, message: Message) -> 
     let options =
         CheckboxList::new([(false, Variant::A), (false, Variant::B), (false, Variant::C)]);
 
-    let complex_widget = ComplexWidget { shapes, options };
+    let complex_widget = ComplexWidget { shapes, options, save_button: Button::new("Save") };
 
     bot.send_message(message.chat.id, "Choose shape and options:")
         .reply_markup(complex_widget.inline_keyboard_markup())
         .await?;
 
     dialogue.update(State::EditingComplexWidget(complex_widget)).await?;
+
+    Ok(())
+}
+
+async fn process_save(bot: Bot, dialogue: Dialogue, cq: CallbackQuery) -> HandlerResult {
+    let message = cq.message.unwrap();
+
+    bot.answer_callback_query(cq.id).await?;
+
+    bot.delete_message(message.chat.id, message.id).await?;
+
+    bot.send_message(message.chat.id, "Your settings successfully saved!").await?;
+
+    dialogue.update(State::Idle).await?;
 
     Ok(())
 }
