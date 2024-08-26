@@ -4,8 +4,10 @@ use teloxide::{
     dispatching::UpdateHandler,
     payloads::EditMessageReplyMarkupSetters,
     prelude::Requester,
-    types::{ChatId, InlineKeyboardMarkup, MessageId, ReplyMarkup},
+    types::{ChatId, InlineKeyboardMarkup, MessageId},
 };
+
+use crate::types::WidgetStyles;
 
 /// Trait that allows to combine inline_widgets together within the
 /// `user-defined` one and provides a way to handle a widget's logic
@@ -15,13 +17,13 @@ use teloxide::{
 pub trait InlineWidget {
     type Dialogue;
     type Bot: Sync + Requester;
-    type Err: From<<Self::Bot as Requester>::Err>;
+    type Err: From<<Self::Bot as Requester>::Err> + Send;
 
     /// Returns the [`dptree`]-handler schema for a `user-defined` widget
     fn schema() -> UpdateHandler<Self::Err>;
 
     /// Returns the [`InlineKeyboardMarkup`] for a `user-defined` widget
-    fn inline_keyboard_markup(&self) -> InlineKeyboardMarkup;
+    fn inline_keyboard_markup(&self, style: &WidgetStyles) -> InlineKeyboardMarkup;
 
     /// Updates the state of a `user-defined` widget
     fn update_state(
@@ -35,26 +37,17 @@ pub trait InlineWidget {
         bot: &Self::Bot,
         chat_id: ChatId,
         message_id: MessageId,
+        style: &WidgetStyles,
     ) -> impl Future<Output = Result<(), Self::Err>> + Send
     where
         Self: Sync,
     {
         async move {
             bot.edit_message_reply_markup(chat_id, message_id)
-                .reply_markup(self.inline_keyboard_markup())
+                .reply_markup(self.inline_keyboard_markup(style))
                 .await?;
 
             Ok(())
         }
-    }
-
-    fn reply_markup(&self) -> ReplyMarkup {
-        ReplyMarkup::InlineKeyboard(self.inline_keyboard_markup())
-    }
-
-    // TODO empty_cell_icon
-    //?
-    fn empty_cell_icon() -> &'static str {
-        "✖️"
     }
 }

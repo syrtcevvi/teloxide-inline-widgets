@@ -4,7 +4,7 @@
 */
 use derive_more::Display;
 use teloxide::{dispatching::dialogue::InMemStorage, prelude::*};
-use teloxide_inline_widgets::{prelude::*, Button, CheckboxList, RadioList};
+use teloxide_inline_widgets::{prelude::*, types::WidgetStyles, Button, CheckboxList, RadioList};
 
 type Bot = teloxide::Bot;
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -58,7 +58,7 @@ async fn main() {
     let state_storage = InMemStorage::<State>::new();
 
     Dispatcher::builder(Bot::from_env(), schema())
-        .dependencies(dptree::deps![state_storage])
+        .dependencies(dptree::deps![state_storage, WidgetStyles::default()])
         .build()
         .dispatch()
         .await;
@@ -80,7 +80,12 @@ fn schema() -> UpdateHandler {
         )
 }
 
-async fn send_complex_widget(bot: Bot, dialogue: Dialogue, message: Message) -> HandlerResult {
+async fn send_complex_widget(
+    bot: Bot,
+    dialogue: Dialogue,
+    message: Message,
+    widget_styles: WidgetStyles,
+) -> HandlerResult {
     let shapes = RadioList::new([Shape::Square, Shape::Triangle, Shape::Circle], None);
 
     let options =
@@ -89,7 +94,7 @@ async fn send_complex_widget(bot: Bot, dialogue: Dialogue, message: Message) -> 
     let complex_widget = ComplexWidget { shapes, options, save_button: Button::new("Save") };
 
     bot.send_message(message.chat.id, "Choose shape and options:")
-        .reply_markup(complex_widget.inline_keyboard_markup())
+        .reply_markup(complex_widget.inline_keyboard_markup(&widget_styles))
         .await?;
 
     dialogue.update(State::EditingComplexWidget(complex_widget)).await?;

@@ -80,7 +80,7 @@ pub(crate) fn inline_widget_impl(input: TokenStream) -> TokenStream {
                         .branch(<#field_type>::schema::<#struct_ident>(#prefix))
                     });
                     markups.push(quote! {
-                        self.#field_ident.inline_keyboard_markup(#prefix, (#rows, #columns))
+                        self.#field_ident.inline_keyboard_markup(#prefix, (#rows, #columns), &styles.radio_list_style)
                     });
                 }
                 CHECKBOX_LIST_TYPE => {
@@ -93,7 +93,7 @@ pub(crate) fn inline_widget_impl(input: TokenStream) -> TokenStream {
                         .branch(<#field_type>::schema::<#struct_ident>(#prefix))
                     });
                     markups.push(quote! {
-                        self.#field_ident.inline_keyboard_markup(#prefix, (#rows, #columns))
+                        self.#field_ident.inline_keyboard_markup(#prefix, (#rows, #columns), &styles.checkbox_list_style)
                     });
                 }
                 BUTTON => {
@@ -122,6 +122,19 @@ pub(crate) fn inline_widget_impl(input: TokenStream) -> TokenStream {
             }
         };
 
+        let inline_keyboard_markup = if fields.iter().count() == 1 {
+            quote! {
+                #(#markups),*
+            }
+        } else {
+            quote! {
+                Layout {
+                    markups: vec![#(#markups),*],
+                    orientation: #layout_orientation
+                }.into()
+            }
+        };
+
         quote! {
             #widget_container_impls
 
@@ -134,11 +147,8 @@ pub(crate) fn inline_widget_impl(input: TokenStream) -> TokenStream {
                     #schema
                 }
 
-                fn inline_keyboard_markup(&self) -> teloxide::types::InlineKeyboardMarkup {
-                    Layout {
-                        markups: vec![#(#markups),*],
-                        orientation: #layout_orientation
-                    }.into()
+                fn inline_keyboard_markup(&self, styles: &WidgetStyles) -> teloxide::types::InlineKeyboardMarkup {
+                    #inline_keyboard_markup
                 }
 
                 async fn update_state(

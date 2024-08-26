@@ -5,7 +5,7 @@ use derive_more::Display;
 use serde::{Deserialize, Serialize};
 use teloxide::{dispatching::dialogue::InMemStorage, prelude::*};
 
-use teloxide_inline_widgets::{prelude::*, RadioList};
+use teloxide_inline_widgets::{prelude::*, types::WidgetStyles, RadioList};
 
 type Bot = teloxide::Bot;
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -45,7 +45,12 @@ async fn main() {
     let state_storage = InMemStorage::<State>::new();
 
     Dispatcher::builder(Bot::from_env(), schema())
-        .dependencies(dptree::deps![state_storage])
+        .dependencies(dptree::deps![
+            state_storage,
+            // The style which is used by the `RadioList` widgets
+            // can be changed in the schema
+            WidgetStyles::default()
+        ])
         .build()
         .dispatch()
         .await;
@@ -67,7 +72,12 @@ fn schema() -> UpdateHandler {
         )
 }
 
-async fn send_widget(bot: Bot, dialogue: Dialogue, message: Message) -> HandlerResult {
+async fn send_widget(
+    bot: Bot,
+    dialogue: Dialogue,
+    message: Message,
+    widget_styles: WidgetStyles,
+) -> HandlerResult {
     let fruits = RadioList::new(
         vec![Fruit { name: "Apple".into(), cost: 42 }, Fruit { name: "Pear".into(), cost: 13 }],
         None,
@@ -76,7 +86,7 @@ async fn send_widget(bot: Bot, dialogue: Dialogue, message: Message) -> HandlerR
     let widget = ChooseFruitWidget { fruits };
 
     bot.send_message(message.chat.id, "Choose a fruit:")
-        .reply_markup(widget.inline_keyboard_markup())
+        .reply_markup(widget.inline_keyboard_markup(&widget_styles))
         .await?;
 
     dialogue.update(State::ChoosingFruit(widget)).await?;

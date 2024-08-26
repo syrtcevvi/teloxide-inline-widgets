@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 use teloxide::{
@@ -8,7 +8,10 @@ use teloxide::{
     types::{CallbackQuery, ChatId, InlineKeyboardButton, InlineKeyboardMarkup, MessageId},
 };
 
-use crate::traits::{InlineWidget, WidgetContainer};
+use crate::{
+    traits::{InlineWidget, WidgetContainer},
+    types::{CheckboxListStyle, WidgetStyles},
+};
 
 /// Checkbox list widget
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -56,9 +59,10 @@ impl<T> CheckboxList<T> {
             .filter_map(|cq: CallbackQuery| cq.message.map(|msg| (msg.chat.id, msg.id, cq.id)))
             .endpoint(
                 |bot: W::Bot,
-                 (chat_id, message_id, cq_id): (ChatId, MessageId, String),
                  dialogue: W::Dialogue,
                  mut widget: W,
+                 (chat_id, message_id, cq_id): (ChatId, MessageId, String),
+                 widget_styles: WidgetStyles,
                  CheckboxListItemIndex(i): CheckboxListItemIndex| async move {
                     bot.answer_callback_query(cq_id).await?;
 
@@ -66,7 +70,7 @@ impl<T> CheckboxList<T> {
                     // It's safe to update the view (keyboard) before the state if updates are
                     // processed consistently in a single chat, so there is no
                     // races
-                    widget.redraw(&bot, chat_id, message_id).await?;
+                    widget.redraw(&bot, chat_id, message_id, &widget_styles).await?;
                     widget.update_state(&dialogue).await?;
 
                     Ok(())
@@ -82,6 +86,7 @@ impl<T> CheckboxList<T> {
         &self,
         prefix: &'static str,
         (rows, columns): (u8, u8),
+        style: &Arc<CheckboxListStyle>,
     ) -> InlineKeyboardMarkup
     where
         T: Display,
@@ -94,7 +99,7 @@ impl<T> CheckboxList<T> {
                 .enumerate()
                 .map(|(column_i, (active, item))| {
                     let i = (row_i * columns as usize) + column_i;
-                    let icon = if *active { "☑" } else { "☐" };
+                    let icon = if *active { &style.active_icon } else { &style.inactive_icon };
 
                     InlineKeyboardButton::callback(format!("{icon} {item}"), format!("{prefix}{i}"))
                 })

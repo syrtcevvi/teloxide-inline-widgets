@@ -4,7 +4,7 @@
 use derive_more::Display;
 use serde::{Deserialize, Serialize};
 use teloxide::{dispatching::dialogue::InMemStorage, prelude::*};
-use teloxide_inline_widgets::{prelude::*, CheckboxList};
+use teloxide_inline_widgets::{prelude::*, types::WidgetStyles, CheckboxList};
 
 type Bot = teloxide::Bot;
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -44,7 +44,7 @@ async fn main() {
     let state_storage = InMemStorage::<State>::new();
 
     Dispatcher::builder(Bot::from_env(), schema())
-        .dependencies(dptree::deps![state_storage])
+        .dependencies(dptree::deps![state_storage, WidgetStyles::default()])
         .build()
         .dispatch()
         .await;
@@ -67,13 +67,18 @@ fn schema() -> UpdateHandler {
         )
 }
 
-async fn send_widget(bot: Bot, dialogue: Dialogue, message: Message) -> HandlerResult {
+async fn send_widget(
+    bot: Bot,
+    dialogue: Dialogue,
+    message: Message,
+    widget_styles: WidgetStyles,
+) -> HandlerResult {
     let options = CheckboxList::from(vec![Variant::A, Variant::B, Variant::C]);
 
     let widget = ChooseVariantsWidget { variants: options };
 
     bot.send_message(message.chat.id, "Choose variants:")
-        .reply_markup(widget.inline_keyboard_markup())
+        .reply_markup(widget.inline_keyboard_markup(&widget_styles))
         .await?;
 
     dialogue.update(State::ChoosingVariants(widget)).await?;
