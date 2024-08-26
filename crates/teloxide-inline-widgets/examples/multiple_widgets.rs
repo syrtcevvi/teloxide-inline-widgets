@@ -22,14 +22,21 @@ enum State {
 
 #[derive(Debug, Clone, InlineWidget)]
 #[inline_widget(err_ty = Error, bot_ty = Bot, dialogue_ty = Dialogue)]
-#[inline_widget(state = State::EditingComplexWidget, layout_orientation =  LayoutOrientation::Horizontal)]
+#[inline_widget(state = State::EditingComplexWidget, layout_orientation =  LayoutOrientation::Vertical)]
 struct ComplexWidget {
-    #[radio_list(prefix = "s_", rows = 4, columns = 1)]
-    pub shapes: RadioList<Shape>,
-    #[checkbox_list(prefix = "o_", rows = 3, columns = 1)]
-    pub options: CheckboxList<Variant>,
+    pub shapes_and_options: ShapesAndOptionsComponent,
     #[button(data = "sb", click = process_save)]
     pub save_button: Button,
+}
+
+#[derive(Debug, Clone, InlineWidget)]
+#[inline_widget(err_ty = Error, bot_ty = Bot, dialogue_ty = Dialogue)]
+#[inline_widget(layout_orientation =  LayoutOrientation::Horizontal)]
+struct ShapesAndOptionsComponent {
+    #[radio_list(prefix = "s_", rows = 3, columns = 1)]
+    pub shapes: RadioList<Shape>,
+    #[checkbox_list(prefix = "o_", rows = 3, columns = 1)]
+    pub variants: CheckboxList<Variant>,
 }
 
 #[derive(Debug, Display, Clone)]
@@ -47,6 +54,7 @@ enum Variant {
     A,
     B,
     C,
+    D
 }
 
 #[tokio::main]
@@ -88,10 +96,16 @@ async fn send_complex_widget(
 ) -> HandlerResult {
     let shapes = RadioList::new([Shape::Square, Shape::Triangle, Shape::Circle], None);
 
-    let options =
+    let variants =
         CheckboxList::new([(false, Variant::A), (false, Variant::B), (false, Variant::C)]);
 
-    let complex_widget = ComplexWidget { shapes, options, save_button: Button::new("Save") };
+    let complex_widget = ComplexWidget {
+        shapes_and_options: ShapesAndOptionsComponent {
+            shapes,
+            variants,
+        },
+        save_button: Button::new("Save")
+    };
 
     bot.send_message(message.chat.id, "Choose shape and options:")
         .reply_markup(complex_widget.inline_keyboard_markup(&widget_styles))

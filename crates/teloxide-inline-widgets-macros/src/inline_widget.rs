@@ -24,7 +24,7 @@ struct InlineWidgetArgs {
     /// Dialogue type
     dialogue_ty: Path,
     /// Variant for the widget state
-    state: Path,
+    state: Option<Path>,
     /// Layout orientation kind
     layout_orientation: Option<Path>,
 }
@@ -108,7 +108,14 @@ pub(crate) fn inline_widget_impl(input: TokenStream) -> TokenStream {
                     schema.extend(button_schema(data, click_handler));
                 }
                 // User-defined types
-                _ => todo!(),
+                _ => {
+                    schema.extend(quote! {
+                        .branch(<#field_type>::schema())
+                    });
+                    markups.push(quote! {
+                        self.#field_ident.inline_keyboard_markup(&styles)
+                    });
+                }
             }
         }
 
@@ -135,6 +142,20 @@ pub(crate) fn inline_widget_impl(input: TokenStream) -> TokenStream {
             }
         };
 
+        let update_state_impl = if let Some(state) = state {
+            quote! {
+                dialogue.update(
+                    #state(self)
+                ).await?;
+
+                Ok(())
+            }
+        } else {
+            quote! {
+                unimplemented!()
+            }
+        };
+
         quote! {
             #widget_container_impls
 
@@ -155,11 +176,7 @@ pub(crate) fn inline_widget_impl(input: TokenStream) -> TokenStream {
                     self,
                     dialogue: &Self::Dialogue
                 ) -> Result<(), Self::Err> {
-                    dialogue.update(
-                        #state(self)
-                    ).await?;
-
-                    Ok(())
+                    #update_state_impl
                 }
             }
         }
