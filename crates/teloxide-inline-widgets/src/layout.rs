@@ -1,41 +1,40 @@
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup, ReplyMarkup};
 
+use crate::types::Size;
+
 /// Allows to combine widgets either `horizontally` or `vertically`
 ///
 /// The actual size of the whole [`Layout`] is determined by the size of
 /// provided [`InlineKeyboardMarkup`]s
 pub struct Layout {
-    pub markups: Vec<InlineKeyboardMarkup>,
+    // FIXME: Allow explicit sizes
+    pub markups: Vec<(InlineKeyboardMarkup, Size)>,
     pub orientation: LayoutOrientation,
 }
 
 impl Layout {
     /// Creates a new layout with widgets' inline keyboard markups
-    pub fn new(markups: Vec<InlineKeyboardMarkup>, orientation: LayoutOrientation) -> Self {
+    pub fn new(markups: Vec<(InlineKeyboardMarkup, Size)>, orientation: LayoutOrientation) -> Self {
         Self { markups, orientation }
     }
 
     /// Returns the size of the [`Layout`]
-    pub fn size(&self) -> (u8, u8) {
+    pub fn size(&self) -> Size {
         use LayoutOrientation::*;
 
-        self.markups.iter().fold((0, 0), |required_size, markup| {
-            let (rows, columns) = Self::markup_size(markup);
+        let (rows, columns) = self.markups.iter().fold((0, 0), |required_size, (_markup, size)| {
+            let Size { rows, columns } = size;
             match self.orientation {
-                Horizontal => (required_size.0.max(rows), required_size.1 + columns),
-                Vertical => (required_size.0 + rows, required_size.1.max(columns)),
+                Horizontal => (required_size.0.max(*rows), required_size.1 + columns),
+                Vertical => (required_size.0 + rows, required_size.1.max(*columns)),
             }
-        })
-    }
-
-    fn markup_size(markup: &InlineKeyboardMarkup) -> (u8, u8) {
-        // Not as accurate as I wanted, but..it works?
-        (markup.inline_keyboard.len() as u8, markup.inline_keyboard[0].len() as u8)
+        });
+        Size { rows, columns }
     }
 
     /// Creates an empty inline keyboard markup with specified number of rows
     /// and columns
-    fn empty_inline_keyboard_markup((rows, columns): (u8, u8)) -> InlineKeyboardMarkup {
+    fn empty_inline_keyboard_markup(Size { rows, columns }: Size) -> InlineKeyboardMarkup {
         InlineKeyboardMarkup::new(
             std::iter::repeat(
                 // FIXME: allow customize noop buttons
@@ -57,23 +56,19 @@ pub enum LayoutOrientation {
 
 impl From<Layout> for InlineKeyboardMarkup {
     fn from(layout: Layout) -> Self {
-        let (rows, columns) = layout.size();
-
         let mut keyboard: Vec<Vec<InlineKeyboardButton>> =
-            Layout::empty_inline_keyboard_markup((rows, columns)).inline_keyboard;
+            Layout::empty_inline_keyboard_markup(layout.size()).inline_keyboard;
 
-        let (mut curr_i, mut curr_j) = (0_u8, 0_u8);
-        for markup in layout.markups {
-            let size = Layout::markup_size(&markup);
-
+        let (mut curr_row, mut curr_column) = (0_u8, 0_u8);
+        for (markup, size) in layout.markups {
             for (row_i, row) in markup.inline_keyboard.into_iter().enumerate() {
                 for (col_i, button) in row.into_iter().enumerate() {
-                    keyboard[curr_i as usize + row_i][curr_j as usize + col_i] = button;
+                    keyboard[curr_row as usize + row_i][curr_column as usize + col_i] = button;
                 }
             }
             match layout.orientation {
-                LayoutOrientation::Horizontal => curr_j += size.1,
-                LayoutOrientation::Vertical => curr_i += size.0,
+                LayoutOrientation::Horizontal => curr_column += size.columns,
+                LayoutOrientation::Vertical => curr_row += size.rows,
             }
         }
 
@@ -96,23 +91,23 @@ mod tests {
 
     #[rstest]
     #[case((
-        vec![(2, 2), (2, 2)],
+        vec![Size::new(2,2), Size::new(2, 2)],
         LayoutOrientation::Horizontal
-    ), (2, 4))]
+    ), Size::new(2, 4))]
     #[case((
-        vec![(1, 3), (4, 2)],
+        vec![Size::new(1,3), Size::new(4, 2)],
         LayoutOrientation::Horizontal,
-    ), (4, 5))]
+    ), Size::new(4, 5))]
     #[case((
-        vec![(2, 2), (2, 2)],
+        vec![Size::new(2, 2), Size::new(2, 2)],
         LayoutOrientation::Vertical
-    ), (4, 2))]
+    ), Size::new(4, 2))]
     // TODO more tests
-    fn layout(#[case] init: (Vec<(u8, u8)>, LayoutOrientation), #[case] expected_size: (u8, u8)) {
+    fn layout(#[case] init: (Vec<Size>, LayoutOrientation), #[case] expected_size: Size) {
         let markups = init
             .0
             .into_iter()
-            .map(|size| Layout::empty_inline_keyboard_markup(size))
+            .map(|size| (Layout::empty_inline_keyboard_markup(size), size))
             .collect::<Vec<_>>();
 
         let layout = Layout::new(markups, init.1);
