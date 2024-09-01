@@ -5,6 +5,6 @@ pub mod types;
 
 mod widgets;
 
-pub use widgets::{Button, CheckboxList, RadioList};
+pub use widgets::{Button, Calendar, CheckboxList, RadioList};
 
 // TODO docs

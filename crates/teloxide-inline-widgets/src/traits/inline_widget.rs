@@ -23,7 +23,7 @@ pub trait InlineWidget {
     fn schema() -> UpdateHandler<Self::Err>;
 
     /// Returns the [`InlineKeyboardMarkup`] for a `user-defined` widget
-    fn inline_keyboard_markup(&self, style: &WidgetStyles) -> InlineKeyboardMarkup;
+    fn inline_keyboard_markup(&self, styles: &WidgetStyles) -> InlineKeyboardMarkup;
 
     /// Updates the state of a `user-defined` widget
     fn update_state(
@@ -37,14 +37,14 @@ pub trait InlineWidget {
         bot: &Self::Bot,
         chat_id: ChatId,
         message_id: MessageId,
-        style: &WidgetStyles,
+        widget_styles: &WidgetStyles,
     ) -> impl Future<Output = Result<(), Self::Err>> + Send
     where
         Self: Sync,
     {
         async move {
             bot.edit_message_reply_markup(chat_id, message_id)
-                .reply_markup(self.inline_keyboard_markup(style))
+                .reply_markup(self.inline_keyboard_markup(widget_styles))
                 .await?;
 
             Ok(())
