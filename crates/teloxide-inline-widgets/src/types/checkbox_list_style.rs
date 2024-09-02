@@ -1,19 +1,17 @@
 use std::{borrow::Cow, sync::Arc};
 
+/// [`CheckboxList`] widget style
 #[derive(Debug, Clone)]
 pub struct CheckboxListStyle {
+    /// Icon of selected item
     pub active_icon: Cow<'static, str>,
+    /// Icon of unselected item
     pub inactive_icon: Cow<'static, str>,
-    pub empty_cell_icon: Cow<'static, str>,
 }
 
 impl Default for CheckboxListStyle {
     fn default() -> Self {
-        Self {
-            active_icon: Cow::Borrowed("☑"),
-            inactive_icon: Cow::Borrowed("☐"),
-            empty_cell_icon: Cow::Borrowed("✖️"),
-        }
+        Self { active_icon: Cow::Borrowed("☑"), inactive_icon: Cow::Borrowed("☐") }
     }
 }
 
@@ -31,16 +29,11 @@ impl CheckboxListStyle {
 pub struct CheckboxListStyleBuilder {
     pub active_icon: Cow<'static, str>,
     pub inactive_icon: Cow<'static, str>,
-    pub empty_cell_icon: Cow<'static, str>,
 }
 
 impl Default for CheckboxListStyleBuilder {
     fn default() -> Self {
-        Self {
-            active_icon: Cow::Borrowed("☑"),
-            inactive_icon: Cow::Borrowed("☐"),
-            empty_cell_icon: Cow::Borrowed("✖️"),
-        }
+        Self { active_icon: Cow::Borrowed("☑"), inactive_icon: Cow::Borrowed("☐") }
     }
 }
 
@@ -53,22 +46,16 @@ impl CheckboxListStyleBuilder {
         Arc::new(CheckboxListStyle {
             active_icon: self.active_icon,
             inactive_icon: self.inactive_icon,
-            empty_cell_icon: self.empty_cell_icon,
         })
     }
 
-    pub fn active_icon(&mut self, value: Cow<'static, str>) -> &mut Self {
+    pub fn active_icon(mut self, value: Cow<'static, str>) -> Self {
         self.active_icon = value;
         self
     }
 
-    pub fn inactive_icon(&mut self, value: Cow<'static, str>) -> &mut Self {
+    pub fn inactive_icon(mut self, value: Cow<'static, str>) -> Self {
         self.inactive_icon = value;
-        self
-    }
-
-    pub fn empty_cell_icon(&mut self, value: Cow<'static, str>) -> &mut Self {
-        self.empty_cell_icon = value;
         self
     }
 }
