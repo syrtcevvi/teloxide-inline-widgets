@@ -202,24 +202,24 @@ impl Calendar {
         keyboard.extend([
             vec![
                 InlineKeyboardButton::callback(
-                    calendar_style.previous_month_icon.to_owned(),
+                    calendar_style.previous_month_icon.clone(),
                     parameters.previous_month_data,
                 ),
                 InlineKeyboardButton::callback(
-                    calendar_style.months[(self.month - 1) as usize].to_owned(),
+                    calendar_style.months[(self.month - 1) as usize].clone(),
                     parameters.noop_data,
                 ),
                 InlineKeyboardButton::callback(
-                    calendar_style.next_month_icon.to_owned(),
+                    calendar_style.next_month_icon.clone(),
                     parameters.next_month_data,
                 ),
                 InlineKeyboardButton::callback(
-                    calendar_style.previous_year_icon.to_owned(),
+                    calendar_style.previous_year_icon.clone(),
                     parameters.previous_year_data,
                 ),
                 InlineKeyboardButton::callback(self.year.to_string(), parameters.noop_data),
                 InlineKeyboardButton::callback(
-                    calendar_style.next_year_icon.to_owned(),
+                    calendar_style.next_year_icon.clone(),
                     parameters.next_year_data,
                 ),
             ],
@@ -230,7 +230,7 @@ impl Calendar {
                 // TODO weekdays
                 .map(|(i, weekday)| {
                     InlineKeyboardButton::callback(
-                        weekday.to_owned(),
+                        weekday.clone(),
                         format!("{}{}", parameters.weekday_prefix, i),
                     )
                 })
@@ -238,19 +238,16 @@ impl Calendar {
         ]);
         // TODO в зависимости от языкового кода...
         let month_first_day = NaiveDate::from_ymd_opt(self.year as i32, self.month, 1).unwrap();
-        let month_last_day = NaiveDate::from_ymd_opt(
-            self.year as i32,
-            self.month,
-            self.days_in_selected_month() as u32,
-        )
-        .unwrap();
+        let month_last_day =
+            NaiveDate::from_ymd_opt(self.year as i32, self.month, self.days_in_selected_month())
+                .unwrap();
 
         let mut day_buttons: Vec<InlineKeyboardButton> = Vec::with_capacity(31);
         let common_style = &styles.common_style;
         let top_empty_cells_quantity = month_first_day.weekday().num_days_from_monday();
         day_buttons.extend(
             repeat(InlineKeyboardButton::callback(
-                common_style.empty_cell_icon.to_owned(),
+                common_style.empty_cell_icon.clone(),
                 parameters.noop_data,
             ))
             .take(top_empty_cells_quantity as usize),
@@ -265,7 +262,7 @@ impl Calendar {
             7u32 - month_last_day.weekday().num_days_from_monday() - 1;
         day_buttons.extend(
             repeat(InlineKeyboardButton::callback(
-                common_style.empty_cell_icon.to_owned(),
+                common_style.empty_cell_icon.clone(),
                 parameters.noop_data,
             ))
             .take(bottom_empty_cells_quantity as usize),

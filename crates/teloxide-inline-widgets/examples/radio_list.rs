@@ -1,10 +1,7 @@
-/*
-    This example demonstrates how to use the `RadioList` widget.
-*/
+//! This example demonstrates how to use the `RadioList` widget.
 use derive_more::Display;
 use serde::{Deserialize, Serialize};
 use teloxide::{dispatching::dialogue::InMemStorage, prelude::*};
-
 use teloxide_inline_widgets::{prelude::*, types::WidgetStyles, RadioList};
 
 type Bot = teloxide::Bot;
@@ -25,7 +22,7 @@ enum State {
 #[inline_widget(err_ty = Error, bot_ty = Bot, dialogue_ty = Dialogue)]
 #[inline_widget(state = State::ChoosingFruit)]
 struct ChooseFruitWidget {
-    #[radio_list(prefix = "f_", rows = 1, columns = 3)]
+    #[radio_list(prefix = "f_")]
     pub fruits: RadioList<Fruit>,
 }
 
@@ -81,6 +78,7 @@ async fn send_widget(
     let fruits = RadioList::new(
         vec![Fruit { name: "Apple".into(), cost: 42 }, Fruit { name: "Pear".into(), cost: 13 }],
         None,
+        Size::new(2, 2),
     );
 
     let widget = ChooseFruitWidget { fruits };

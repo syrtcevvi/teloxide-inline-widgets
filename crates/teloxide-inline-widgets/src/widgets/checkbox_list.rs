@@ -1,4 +1,4 @@
-use std::{fmt::Display, sync::Arc};
+use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 use teloxide::{
@@ -9,13 +9,15 @@ use teloxide::{
 };
 
 use crate::{
-    traits::{InlineWidget, WidgetContainer},
-    types::{CheckboxListStyle, WidgetStyles},
+    traits::{GetSize, InlineWidget, WidgetContainer},
+    types::{Size, WidgetStyles},
 };
 
 /// Checkbox list widget
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CheckboxList<T> {
+    /// Size of the [`CheckboxList`] widget
+    pub size: Size,
     items: Vec<(bool, T)>,
 }
 
@@ -28,8 +30,8 @@ impl<T> CheckboxList<T> {
     ///
     /// If you want to create an instance with selected values, pass _true_ with
     /// these values.
-    pub fn new(items: impl IntoIterator<Item = (bool, T)>) -> Self {
-        Self { items: Vec::from_iter(items) }
+    pub fn new(items: impl IntoIterator<Item = (bool, T)>, size: Size) -> Self {
+        Self { items: Vec::from_iter(items), size }
     }
 
     /// Toggles the selection of the item specified by the index
@@ -46,7 +48,8 @@ impl<T> CheckboxList<T> {
         self.items.iter().filter_map(|(selected, item)| if *selected { Some(item) } else { None })
     }
 
-    pub fn schema<W>(prefix: &'static str) -> UpdateHandler<W::Err>
+    /// [`dptree`]-schema for the [`CheckboxList`] widget
+    pub fn schema<W>(parameters: &'static CheckboxListSchemaParameters) -> UpdateHandler<W::Err>
     where
         W: 'static + Clone + Send + Sync + InlineWidget + WidgetContainer<Self>,
         W::Bot: 'static + Clone + Send + Sync,
@@ -54,7 +57,7 @@ impl<T> CheckboxList<T> {
     {
         dptree::entry()
             .filter_map(move |cq: CallbackQuery| {
-                Some(CheckboxListItemIndex(cq.data?.strip_prefix(prefix)?.parse().ok()?))
+                Some(CheckboxListItemIndex(cq.data?.strip_prefix(parameters.prefix)?.parse().ok()?))
             })
             .filter_map(|cq: CallbackQuery| cq.message.map(|msg| (msg.chat.id, msg.id, cq.id)))
             .endpoint(
@@ -84,28 +87,40 @@ impl<T> CheckboxList<T> {
     /// It's not supposed to be used directly
     pub fn inline_keyboard_markup(
         &self,
-        prefix: &'static str,
-        (rows, columns): (u8, u8),
-        style: &Arc<CheckboxListStyle>,
+        parameters: &CheckboxListSchemaParameters,
+        styles: &WidgetStyles,
     ) -> InlineKeyboardMarkup
     where
         T: Display,
     {
-        let mut keyboard: Vec<Vec<InlineKeyboardButton>> = Vec::with_capacity(rows as usize);
+        let Size { rows, columns } = self.size;
 
-        for (row_i, chunk) in self.items.chunks(columns as usize).enumerate() {
-            let row = chunk
-                .iter()
-                .enumerate()
-                .map(|(column_i, (active, item))| {
-                    let i = (row_i * columns as usize) + column_i;
-                    let icon = if *active { &style.active_icon } else { &style.inactive_icon };
+        use std::iter::repeat;
+        let mut keyboard: Vec<Vec<InlineKeyboardButton>> = repeat(
+            repeat(InlineKeyboardButton::callback(
+                styles.common_style.empty_cell_icon.clone(),
+                parameters.noop_data,
+            ))
+            .take(columns as usize)
+            .collect(),
+        )
+        .take(rows as usize)
+        .collect();
 
-                    InlineKeyboardButton::callback(format!("{icon} {item}"), format!("{prefix}{i}"))
-                })
-                .collect();
+        for (row_i, row_chunk) in self.items.chunks(columns as usize).enumerate() {
+            for (column_i, (active, item)) in row_chunk.iter().enumerate() {
+                let i = (row_i * columns as usize) + column_i;
+                let icon = if *active {
+                    &styles.checkbox_list_style.active_icon
+                } else {
+                    &styles.checkbox_list_style.inactive_icon
+                };
 
-            keyboard.push(row);
+                keyboard[row_i][column_i] = InlineKeyboardButton::callback(
+                    format!("{icon} {item}"),
+                    format!("{}{}", parameters.prefix, i),
+                )
+            }
         }
 
         InlineKeyboardMarkup::new(keyboard)
@@ -114,14 +129,27 @@ impl<T> CheckboxList<T> {
 
 impl<T> From<Vec<T>> for CheckboxList<T> {
     fn from(value: Vec<T>) -> Self {
-        CheckboxList::new(value.into_iter().map(|item| (false, item)))
+        let size = Size::new(1, value.len() as u8);
+        CheckboxList::new(value.into_iter().map(|item| (false, item)), size)
     }
 }
 
 impl<T> From<Vec<(bool, T)>> for CheckboxList<T> {
     fn from(value: Vec<(bool, T)>) -> Self {
-        CheckboxList::new(value)
+        let size = Size::new(1, value.len() as u8);
+        CheckboxList::new(value, size)
     }
+}
+
+impl<T> GetSize for CheckboxList<T> {
+    fn size(&self) -> Size {
+        self.size
+    }
+}
+
+pub struct CheckboxListSchemaParameters {
+    pub prefix: &'static str,
+    pub noop_data: &'static str,
 }
 
 #[cfg(test)]
@@ -130,7 +158,7 @@ mod tests {
 
     #[test]
     fn checkbox_list() {
-        let mut cl = CheckboxList::new([(false, 1), (false, 2), (true, 3)]);
+        let mut cl = CheckboxList::new([(false, 1), (false, 2), (true, 3)], Size::new(1, 3));
         assert_eq!(cl.selected_items().collect::<Vec<_>>(), [&3]);
 
         cl.toggle(2);
@@ -145,7 +173,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn i_out_of_bounds() {
-        let mut cl: CheckboxList<i32> = CheckboxList::new([]);
+        let mut cl: CheckboxList<i32> = CheckboxList::new([], Size::new(0, 0));
 
         cl.toggle(1);
     }

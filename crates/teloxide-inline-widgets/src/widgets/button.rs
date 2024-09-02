@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup};
 
+use crate::{traits::GetSize, types::Size};
+
 /// Single inline-keyboard `callback query` button
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Button {
@@ -20,5 +22,11 @@ impl Button {
     /// It's not supposed to be used directly
     pub fn inline_keyboard_markup(&self, data: &'static str) -> InlineKeyboardMarkup {
         InlineKeyboardMarkup::new(vec![vec![InlineKeyboardButton::callback(&self.label, data)]])
+    }
+}
+
+impl GetSize for Button {
+    fn size(&self) -> Size {
+        Size { rows: 1, columns: 1 }
     }
 }

@@ -1,4 +1,4 @@
-use std::{fmt::Display, sync::Arc};
+use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 use teloxide::{
@@ -9,14 +9,15 @@ use teloxide::{
 };
 
 use crate::{
-    traits::{InlineWidget, WidgetContainer},
-    types::{RadioListStyle, WidgetStyles},
+    traits::{GetSize, InlineWidget, WidgetContainer},
+    types::{Size, WidgetStyles},
 };
 
 /// Radio list widget
 // FIXME add gif to docs?
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RadioList<T> {
+    pub size: Size,
     items: Vec<T>,
     active_item_i: Option<usize>,
 }
@@ -31,7 +32,11 @@ impl<T> RadioList<T> {
     /// active item.
     ///
     /// Panics if the `active_item_i` index is out of bounds
-    pub fn new(items: impl IntoIterator<Item = T>, active_item_i: Option<usize>) -> Self {
+    pub fn new(
+        items: impl IntoIterator<Item = T>,
+        active_item_i: Option<usize>,
+        size: Size,
+    ) -> Self {
         let items = Vec::from_iter(items);
 
         if items.is_empty() {
@@ -42,7 +47,7 @@ impl<T> RadioList<T> {
             assert!(i < items.len());
         }
 
-        Self { items: Vec::from_iter(items), active_item_i }
+        Self { items: Vec::from_iter(items), active_item_i, size }
     }
 
     /// Returns the reference to the active item
@@ -72,7 +77,8 @@ impl<T> RadioList<T> {
     // TODO more helpful functions
 
     // TODO Add tests
-    pub fn schema<W>(prefix: &'static str) -> UpdateHandler<W::Err>
+    /// [`dptree`]-schema for the [`RadioList`] widget
+    pub fn schema<W>(parameters: &'static RadioListSchemaParameters) -> UpdateHandler<W::Err>
     where
         W: 'static + Clone + Send + Sync + InlineWidget + WidgetContainer<Self>,
         W::Bot: 'static + Clone + Send + Sync,
@@ -80,7 +86,7 @@ impl<T> RadioList<T> {
     {
         dptree::entry()
             .filter_map(move |cq: CallbackQuery| {
-                Some(RadioListItemIndex(cq.data?.strip_prefix(prefix)?.parse().ok()?))
+                Some(RadioListItemIndex(cq.data?.strip_prefix(parameters.prefix)?.parse().ok()?))
             })
             .filter_map(|cq: CallbackQuery| cq.message.map(|msg| (msg.chat.id, msg.id, cq.id)))
             .endpoint(
@@ -118,33 +124,40 @@ impl<T> RadioList<T> {
     /// It's not supposed to be used directly
     pub fn inline_keyboard_markup(
         &self,
-        prefix: &'static str,
-        (rows, columns): (u8, u8),
-        style: &Arc<RadioListStyle>,
+        parameters: &RadioListSchemaParameters,
+        styles: &WidgetStyles,
     ) -> InlineKeyboardMarkup
     where
         T: Display,
     {
-        let mut keyboard: Vec<Vec<InlineKeyboardButton>> = Vec::with_capacity(rows as usize);
+        let Size { rows, columns } = self.size;
 
-        // TODO order (RowMajor, Column Major)?
-        for (row_i, chunk) in self.items.chunks(columns as usize).enumerate() {
-            let row = chunk
-                .iter()
-                .enumerate()
-                .map(|(column_i, item)| {
-                    let i = (row_i * columns as usize) + column_i;
-                    let icon = if self.active_item_i == Some(i) {
-                        &style.active_icon
-                    } else {
-                        &style.inactive_icon
-                    };
+        use std::iter::repeat;
+        let mut keyboard: Vec<Vec<InlineKeyboardButton>> = repeat(
+            repeat(InlineKeyboardButton::callback(
+                styles.common_style.empty_cell_icon.clone(),
+                parameters.noop_data,
+            ))
+            .take(columns as usize)
+            .collect(),
+        )
+        .take(rows as usize)
+        .collect();
 
-                    InlineKeyboardButton::callback(format!("{icon} {item}"), format!("{prefix}{i}"))
-                })
-                .collect();
+        for (row_i, row_chunk) in self.items.chunks(columns as usize).enumerate() {
+            for (column_i, item) in row_chunk.iter().enumerate() {
+                let i = (row_i * columns as usize) + column_i;
+                let icon = if self.active_item_i == Some(i) {
+                    &styles.radio_list_style.active_icon
+                } else {
+                    &styles.radio_list_style.inactive_icon
+                };
 
-            keyboard.push(row);
+                keyboard[row_i][column_i] = InlineKeyboardButton::callback(
+                    format!("{icon} {item}"),
+                    format!("{}{}", parameters.prefix, i),
+                )
+            }
         }
 
         InlineKeyboardMarkup::new(keyboard)
@@ -153,8 +166,20 @@ impl<T> RadioList<T> {
 
 impl<T> From<Vec<T>> for RadioList<T> {
     fn from(value: Vec<T>) -> Self {
-        RadioList::new(value, None)
+        let size = Size::new(1, value.len() as u8);
+        RadioList::new(value, None, size)
     }
+}
+
+impl<T> GetSize for RadioList<T> {
+    fn size(&self) -> Size {
+        self.size
+    }
+}
+
+pub struct RadioListSchemaParameters {
+    pub prefix: &'static str,
+    pub noop_data: &'static str,
 }
 
 #[cfg(test)]
@@ -163,7 +188,7 @@ mod tests {
 
     #[test]
     fn radio_list() {
-        let mut rl = RadioList::new([1, 2], None);
+        let mut rl = RadioList::new([1, 2], None, Size::new(1, 2));
         assert!(rl.active_item().is_none());
         rl.set_active(1);
         assert_eq!(rl.active_item(), Some(&2));
@@ -172,13 +197,13 @@ mod tests {
     #[test]
     #[should_panic]
     fn active_item_i_out_of_bounds() {
-        let _rl: RadioList<i32> = RadioList::new([1, 2, 3], Some(3));
+        let _rl: RadioList<i32> = RadioList::new([1, 2, 3], Some(3), Size::new(1, 3));
     }
 
     #[test]
     #[should_panic]
     fn i_out_of_bounds() {
-        let mut rl = RadioList::new([1, 2, 3], None);
+        let mut rl = RadioList::new([1, 2, 3], None, Size::new(1, 3));
 
         rl.set_active(3);
     }
