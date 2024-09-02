@@ -3,7 +3,7 @@ use quote::quote;
 use syn::Path;
 
 /// Handler schema for the [`Button`] widget
-pub fn button_schema(cq_data: String, click_handler: Path) -> TokenStream2 {
+pub fn button_schema(cq_data: &String, click_handler: &Path) -> TokenStream2 {
     quote! {
         .branch(
             dptree::entry()

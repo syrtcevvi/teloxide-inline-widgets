@@ -4,7 +4,7 @@ use syn::Path;
 /// Arguments for the `#[button]` field attribute
 #[derive(Debug, FromField)]
 #[darling(attributes(button))]
-pub struct ButtonArgs {
+pub struct ButtonParameters {
     /// CallbackQuery data to be sent when the button is clicked
     pub data: String,
     /// Handler to be invoked when the button is clicked
