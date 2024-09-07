@@ -1,43 +1,36 @@
+mod impls;
+
 use darling::{FromDeriveInput, FromField};
 use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse_macro_input, Data, DataStruct, DeriveInput, Ident, Path, Type, TypePath};
+use syn::{parse_macro_input, Data, DataStruct, DeriveInput, Path, Type, TypePath};
 
 use crate::{
     attribute_parameters::{
         ButtonParameters, CalendarParameters, CheckboxListParameters, RadioListParameters,
     },
-    schemes::button_schema,
+    constants::*,
+    inline_widget::impls::*,
 };
 
-const RADIO_LIST_TYPE: &str = "RadioList";
-const CHECKBOX_LIST_TYPE: &str = "CheckboxList";
-const BUTTON: &str = "Button";
-const CALENDAR: &str = "Calendar";
-
-const NOOP_DATA: &str = "noop";
-
-/// Arguments for the top-level `#[inline_widget]` struct attribute
+/// Arguments for the top-level `#[inline_widget]` struct attribute.
+///
+/// The `bot_ty` is the most important one and is needed for every widget.
+/// For instance, `dialogue_ty` and `state` are useless for the
+/// `Button` widget
 #[derive(Debug, FromDeriveInput)]
 #[darling(attributes(inline_widget))]
 struct InlineWidgetArgs {
-    /// Error type
-    err_ty: Path,
     /// Bot type
     bot_ty: Path,
+    /// Error type
+    err_ty: Path,
     /// Dialogue type
     dialogue_ty: Option<Path>,
     /// Variant for the widget state
     state: Option<Path>,
     /// Layout orientation kind
     layout_orientation: Option<Path>,
-}
-
-pub struct ComponentParameters<'a> {
-    pub struct_ident: &'a Ident,
-    pub field_ident: &'a Ident,
-    pub field_type: &'a Type,
 }
 
 pub(crate) fn inline_widget_impl(input: TokenStream) -> TokenStream {
@@ -109,7 +102,7 @@ pub(crate) fn inline_widget_impl(input: TokenStream) -> TokenStream {
                         &mut markups,
                     );
                 }
-                BUTTON => {
+                BUTTON_TYPE => {
                     let parameters = &match ButtonParameters::from_field(field) {
                         Ok(parameters) => parameters,
                         Err(err) => return TokenStream::from(err.write_errors()),
@@ -122,7 +115,7 @@ pub(crate) fn inline_widget_impl(input: TokenStream) -> TokenStream {
                         &mut markups,
                     );
                 }
-                CALENDAR => {
+                CALENDAR_TYPE => {
                     let parameters = &match CalendarParameters::from_field(field) {
                         Ok(mut parameters) => {
                             parameters.prev_year = parameters.prev_year.or(Some("py".to_owned()));
@@ -143,28 +136,28 @@ pub(crate) fn inline_widget_impl(input: TokenStream) -> TokenStream {
                 }
                 // User-defined types
                 _ => {
-                    schema_impl.extend(quote! {
-                        .branch(<#field_type>::schema())
-                    });
-                    markups.push(quote! {
-                        (
-                            self.#field_ident.inline_keyboard_markup(&styles),
-                            self.#field_ident.size()
-                        )
-                    });
+                    // How to properly do this?
+                    // Maybe smth like this:
+                    // pub trait GetInnerWidgets {
+                    //     fn inner_widgets(&self) -> Vec<(Vec<Ident>, Path)>;
+                    // }
+                    unimplemented!()
+                    // schema_impl.extend(quote! {
+                    //     .branch(<#field_type>::schema())
+                    // });
+                    // markups.push(quote! {
+                    //     (
+                    //         self.#field_ident.inline_keyboard_markup(&
+                    // styles),         self.#field_ident.
+                    // size()     )
+                    // });
                 }
             }
         }
 
-        let layout_orientation = if let Some(layout_orientation) = layout_orientation {
-            quote! {
-                #layout_orientation
-            }
-        } else {
-            quote! {
-                LayoutOrientation::Vertical
-            }
-        };
+        let layout_orientation = layout_orientation
+            .map(|lo| quote! {#lo})
+            .unwrap_or(quote! {LayoutOrientation::Vertical});
 
         let first_markup = &markups[0];
         let inline_keyboard_markup_impl = if fields.iter().count() == 1 {
@@ -180,29 +173,10 @@ pub(crate) fn inline_widget_impl(input: TokenStream) -> TokenStream {
             }
         };
 
-        let update_state_impl = if let Some(state) = state {
-            quote! {
-                dialogue.update(
-                    #state(self)
-                ).await?;
-
-                Ok(())
-            }
-        } else {
-            quote! {
-                unimplemented!()
-            }
-        };
-
-        let dialogue_ty = if let Some(dialogue_ty) = dialogue_ty {
-            quote! {
-                #dialogue_ty
-            }
-        } else {
-            quote! {
-                ()
-            }
-        };
+        let update_state_impl = state
+            .map(|state| quote! {dialogue.update(#state(self)).await?; Ok(())})
+            .unwrap_or(quote! {unimplemented!()});
+        let dialogue_ty = dialogue_ty.map(|ty| quote! {#ty}).unwrap_or(quote! {()});
 
         quote! {
             #widget_container_impls
@@ -221,8 +195,8 @@ pub(crate) fn inline_widget_impl(input: TokenStream) -> TokenStream {
             }
 
             impl InlineWidget for #struct_ident {
-                type Err = #err_ty;
                 type Bot = #bot_ty;
+                type Err = #err_ty;
                 type Dialogue = #dialogue_ty;
 
                 fn schema() -> teloxide::dispatching::UpdateHandler<Self::Err> {
@@ -252,112 +226,4 @@ fn get_type_name(ty: &Type) -> String {
         syn::Type::Path(TypePath { path, .. }) => path.segments.last().unwrap().ident.to_string(),
         _ => panic!("Unable to get the type name for: {ty:#?}"),
     }
-}
-
-pub trait GetInnerWidgets {
-    fn inner_widgets(&self) -> Vec<(Vec<Ident>, Path)>;
-}
-
-fn widget_container_impl(
-    ComponentParameters { struct_ident, field_ident, field_type }: &ComponentParameters,
-    widget_container_impls: &mut TokenStream2,
-) {
-    widget_container_impls.extend(quote! {
-        impl WidgetContainer<#field_type> for #struct_ident {
-            fn get_widget(&mut self) -> &mut #field_type {
-                &mut self.#field_ident
-            }
-        }
-    });
-}
-
-fn radio_list_component_impl(
-    RadioListParameters { prefix, noop_data }: &RadioListParameters,
-    ComponentParameters { struct_ident, field_ident, field_type }: &ComponentParameters,
-    schema_impl: &mut TokenStream2,
-    markups: &mut Vec<TokenStream2>,
-) {
-    let radio_list_schema_parameters = quote! {
-        RadioListSchemaParameters {
-            prefix: #prefix,
-            noop_data: #noop_data
-        }
-    };
-    schema_impl.extend(quote! {
-        .branch(<#field_type>::schema::<#struct_ident>(&#radio_list_schema_parameters))
-    });
-    markups.push(quote! {
-        (
-            self.#field_ident.inline_keyboard_markup(&#radio_list_schema_parameters, &styles),
-            self.#field_ident.size()
-        )
-    });
-}
-
-fn checkbox_list_component_impl(
-    CheckboxListParameters { prefix, noop_data }: &CheckboxListParameters,
-    ComponentParameters { struct_ident, field_ident, field_type }: &ComponentParameters,
-    schema_impl: &mut TokenStream2,
-    markups: &mut Vec<TokenStream2>,
-) {
-    let checkbox_list_schema_parameters = quote! {
-        CheckboxListSchemaParameters {
-            prefix: #prefix,
-            noop_data: #noop_data
-        }
-    };
-    schema_impl.extend(quote! {
-        .branch(<#field_type>::schema::<#struct_ident>(&#checkbox_list_schema_parameters))
-    });
-    markups.push(quote! {
-        (
-            self.#field_ident.inline_keyboard_markup(&#checkbox_list_schema_parameters, &styles),
-            self.#field_ident.size()
-        )
-    });
-}
-
-fn button_component_impl(
-    ButtonParameters { data, click_handler }: &ButtonParameters,
-    ComponentParameters { field_ident, .. }: &ComponentParameters,
-    schema_impl: &mut TokenStream2,
-    markups: &mut Vec<TokenStream2>,
-) {
-    markups.push(quote! {
-        (
-            self.#field_ident.inline_keyboard_markup(#data),
-            self.#field_ident.size()
-        )
-    });
-    schema_impl.extend(button_schema(data, click_handler));
-}
-
-fn calendar_component_impl(
-    CalendarParameters { prev_year, next_year, prev_month, next_month, day_click_handler }: &CalendarParameters,
-    ComponentParameters { struct_ident, field_ident, field_type }: &ComponentParameters,
-    schema_impl: &mut TokenStream2,
-    markups: &mut Vec<TokenStream2>,
-) {
-    // FIXME
-    let calendar_schema_parameters = quote! {
-        CalendarSchemaParameters {
-            previous_year_data: #prev_year,
-            next_year_data: #next_year,
-            previous_month_data: #prev_month,
-            next_month_data: #next_month,
-            noop_data: #NOOP_DATA,
-            day_prefix: "d_",
-            weekday_prefix: "w_"
-        }
-    };
-
-    schema_impl.extend(quote! {
-        .branch(<#field_type>::schema::<#struct_ident>(&#calendar_schema_parameters))
-    });
-    markups.push(quote! {
-        (
-            self.#field_ident.inline_keyboard_markup(&#calendar_schema_parameters, &styles),
-            self.#field_ident.size()
-        )
-    });
 }

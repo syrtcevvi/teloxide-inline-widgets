@@ -5,7 +5,10 @@ use syn::Path;
 #[darling(attributes(calendar))]
 pub struct CalendarParameters {
     /// Handler to be invoked when the day-button is clicked
+    #[darling(rename = "day_click")]
     pub day_click_handler: Path,
+    /// CallbackQuery data prefix to be sent with the selected day
+    pub day_prefix: String,
     /// CallbackQuery data to be sent when the `previous year` button is
     /// clicked, `py` by default
     pub prev_year: Option<String>,
