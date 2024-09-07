@@ -26,6 +26,7 @@ derive_more = { version = "0.99.18", default-features = false, features = ["disp
 serde = { version = "1.0.204", features = ["derive"] }
 teloxide = { version = "0.12.2", default-features = false }
 log = "0.4.22"
+chrono = "0.4.38"
 
 [dev-dependencies]
 derive_more = "0.99.18"
@@ -33,7 +34,7 @@ log = "0.4.22"
 pretty_assertions = "1.4.0"
 pretty_env_logger = "0.5.0"
 rstest = "0.22.0"
-teloxide = "0.12.2"
+teloxide = { version = "0.12.2", features = ["macros"] }
 tokio = { version = "1.39.1", features = ["rt-multi-thread", "macros"] }
 
 [[example]]
