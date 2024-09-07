@@ -11,6 +11,7 @@ use crate::{
     },
     constants::*,
     inline_widget::impls::*,
+    schemes::CalendarSchemaTypes,
 };
 
 /// Arguments for the top-level `#[inline_widget]` struct attribute.
@@ -46,7 +47,6 @@ pub(crate) fn inline_widget_impl(input: TokenStream) -> TokenStream {
             };
 
         let mut widget_container_impls = quote! {};
-        let mut get_inner_widgets_impl = quote! {};
         let mut schema_impl = quote! {
             dptree::entry()
         };
@@ -118,10 +118,21 @@ pub(crate) fn inline_widget_impl(input: TokenStream) -> TokenStream {
                 CALENDAR_TYPE => {
                     let parameters = &match CalendarParameters::from_field(field) {
                         Ok(mut parameters) => {
-                            parameters.prev_year = parameters.prev_year.or(Some("py".to_owned()));
-                            parameters.next_year = parameters.next_year.or(Some("ny".to_owned()));
-                            parameters.prev_month = parameters.prev_month.or(Some("pm".to_owned()));
-                            parameters.next_month = parameters.next_month.or(Some("nm".to_owned()));
+                            parameters.day_prefix =
+                                parameters.day_prefix.or(Some(calendar::DAY_PREFIX.to_owned()));
+                            parameters.weekday_prefix = parameters
+                                .weekday_prefix
+                                .or(Some(calendar::WEEKDAY_PREFIX.to_owned()));
+                            parameters.prev_year =
+                                parameters.prev_year.or(Some(calendar::PREV_YEAR.to_owned()));
+                            parameters.next_year =
+                                parameters.next_year.or(Some(calendar::NEXT_YEAR.to_owned()));
+                            parameters.prev_month =
+                                parameters.prev_month.or(Some(calendar::PREV_MONTH.to_owned()));
+                            parameters.next_month =
+                                parameters.next_month.or(Some(calendar::NEXT_MONTH.to_owned()));
+                            parameters.noop_data =
+                                parameters.noop_data.or(Some(NOOP_DATA.to_owned()));
                             parameters
                         }
                         Err(err) => return TokenStream::from(err.write_errors()),
@@ -129,6 +140,13 @@ pub(crate) fn inline_widget_impl(input: TokenStream) -> TokenStream {
                     widget_container_impl(component_parameters, &mut widget_container_impls);
                     calendar_component_impl(
                         parameters,
+                        &CalendarSchemaTypes {
+                            bot_ty: bot_ty.clone(),
+                            widget_ty: struct_ident.clone(),
+                            dialogue_ty: dialogue_ty.clone().expect(
+                                "There must be the dialogue type for the `Calendar` widget",
+                            ),
+                        },
                         component_parameters,
                         &mut schema_impl,
                         &mut markups,
@@ -136,21 +154,7 @@ pub(crate) fn inline_widget_impl(input: TokenStream) -> TokenStream {
                 }
                 // User-defined types
                 _ => {
-                    // How to properly do this?
-                    // Maybe smth like this:
-                    // pub trait GetInnerWidgets {
-                    //     fn inner_widgets(&self) -> Vec<(Vec<Ident>, Path)>;
-                    // }
                     unimplemented!()
-                    // schema_impl.extend(quote! {
-                    //     .branch(<#field_type>::schema())
-                    // });
-                    // markups.push(quote! {
-                    //     (
-                    //         self.#field_ident.inline_keyboard_markup(&
-                    // styles),         self.#field_ident.
-                    // size()     )
-                    // });
                 }
             }
         }

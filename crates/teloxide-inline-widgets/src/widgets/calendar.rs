@@ -1,28 +1,15 @@
-use std::{collections::HashMap, iter::repeat};
+use std::iter::repeat;
 
 use chrono::{Datelike, Local, NaiveDate};
 use serde::{Deserialize, Serialize};
-use teloxide::{
-    dispatching::UpdateHandler,
-    dptree,
-    prelude::Requester,
-    types::{CallbackQuery, ChatId, InlineKeyboardButton, InlineKeyboardMarkup, MessageId},
-};
+use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup};
 
 use crate::{
-    traits::{GetSize, InlineWidget, WidgetContainer},
+    traits::GetSize,
     types::{Size, WidgetStyles},
 };
 
 // TODO put behind the `calendar` feature-flag
-
-#[derive(Debug, Clone, Copy)]
-pub enum CalendarAction {
-    ChoosePreviousYear,
-    ChooseNextYear,
-    ChoosePreviousMonth,
-    ChooseNextMonth,
-}
 
 /// Calendar widget
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -77,7 +64,7 @@ impl Calendar {
             self.month = 12;
             self.year -= 1;
         } else {
-            self.month = self.month - 1;
+            self.month -= 1;
         }
     }
 
@@ -121,75 +108,6 @@ impl Calendar {
             .unwrap()
     }
 
-    pub fn schema<W>(parameters: &'static CalendarSchemaParameters) -> UpdateHandler<W::Err>
-    where
-        W: 'static + Clone + Send + Sync + InlineWidget + WidgetContainer<Self>,
-        W::Bot: 'static + Clone + Send + Sync,
-        W::Dialogue: 'static + Clone + Send + Sync,
-    {
-        let cq_data_to_calendar_action: HashMap<&'static str, CalendarAction> =
-            HashMap::from_iter(vec![
-                (parameters.previous_year_data, CalendarAction::ChoosePreviousYear),
-                (parameters.next_year_data, CalendarAction::ChooseNextYear),
-                (parameters.previous_month_data, CalendarAction::ChoosePreviousMonth),
-                (parameters.next_month_data, CalendarAction::ChooseNextMonth),
-            ]);
-
-        dptree::entry()
-            .branch(
-                dptree::filter_map(|cq: CallbackQuery| {
-                    NaiveDate::parse_from_str(
-                        cq.data?.strip_prefix(parameters.day_prefix)?,
-                        "%Y/%m/%d",
-                    )
-                    .ok()
-                }), // TODO callback for selected day here
-            )
-            // TODO weekdays
-            // .branch(
-            //     dptree::filter_map(|cq: CallbackQuery| )
-            // )
-            .filter_map(move |cq: CallbackQuery| {
-                cq_data_to_calendar_action.get(cq.data?.as_str()).cloned()
-            })
-            .filter_map(|cq: CallbackQuery| cq.message.map(|msg| (msg.chat.id, msg.id, cq.id)))
-            .branch(
-                // FIXME: unnecessary in the future
-                dptree::filter(|calendar_action: CalendarAction| {
-                    use CalendarAction::*;
-                    log::info!("{:#?}", calendar_action);
-                    match calendar_action {
-                        ChoosePreviousYear | ChooseNextYear | ChoosePreviousMonth
-                        | ChooseNextMonth => true,
-                        _ => false,
-                    }
-                })
-                .endpoint(
-                    |bot: W::Bot,
-                     dialogue: W::Dialogue,
-                     mut widget: W,
-                     calendar_action: CalendarAction,
-                     (chat_id, message_id, cq_id): (ChatId, MessageId, String),
-                     widget_styles: WidgetStyles| async move {
-                        bot.answer_callback_query(cq_id).await?;
-
-                        let calendar = widget.get_widget();
-                        use CalendarAction::*;
-                        match calendar_action {
-                            ChoosePreviousYear => calendar.set_previous_year(),
-                            ChooseNextYear => calendar.set_next_year(),
-                            ChoosePreviousMonth => calendar.set_previous_month(),
-                            ChooseNextMonth => calendar.set_next_month(),
-                        }
-                        widget.redraw(&bot, chat_id, message_id, &widget_styles).await?;
-                        widget.update_state(&dialogue).await?;
-
-                        Ok(())
-                    },
-                ),
-            )
-    }
-
     pub fn inline_keyboard_markup(
         &self,
         parameters: &CalendarSchemaParameters,
@@ -227,7 +145,6 @@ impl Calendar {
                 .days_of_the_week
                 .iter()
                 .enumerate()
-                // TODO weekdays
                 .map(|(i, weekday)| {
                     InlineKeyboardButton::callback(
                         weekday.clone(),
@@ -236,7 +153,6 @@ impl Calendar {
                 })
                 .collect(),
         ]);
-        // TODO в зависимости от языкового кода...
         let month_first_day = NaiveDate::from_ymd_opt(self.year as i32, self.month, 1).unwrap();
         let month_last_day =
             NaiveDate::from_ymd_opt(self.year as i32, self.month, self.days_in_selected_month())
@@ -283,11 +199,11 @@ impl GetSize for Calendar {
 }
 
 pub struct CalendarSchemaParameters {
+    pub day_prefix: &'static str,
+    pub weekday_prefix: &'static str,
     pub previous_year_data: &'static str,
     pub next_year_data: &'static str,
     pub previous_month_data: &'static str,
     pub next_month_data: &'static str,
     pub noop_data: &'static str,
-    pub day_prefix: &'static str,
-    pub weekday_prefix: &'static str,
 }

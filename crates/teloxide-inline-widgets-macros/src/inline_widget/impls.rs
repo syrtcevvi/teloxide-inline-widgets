@@ -2,7 +2,10 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{Ident, Type};
 
-use crate::{attribute_parameters::*, constants::*, schemes::button_schema};
+use crate::{
+    attribute_parameters::*,
+    schemes::{button_schema, calendar_schema, CalendarSchemaTypes},
+};
 
 pub struct ComponentParameters<'a> {
     /// User-defined widget identifier
@@ -89,38 +92,40 @@ pub fn button_component_impl(
 }
 
 pub fn calendar_component_impl(
-    CalendarParameters {
+    parameters: &CalendarParameters,
+    schema_types: &CalendarSchemaTypes,
+    ComponentParameters { field_ident, .. }: &ComponentParameters,
+    schema_impl: &mut TokenStream2,
+    markups: &mut Vec<TokenStream2>,
+) {
+    let CalendarParameters {
         day_prefix,
-        day_click_handler,
+        weekday_prefix,
         prev_year,
         next_year,
         prev_month,
         next_month,
-    }: &CalendarParameters,
-    ComponentParameters { struct_ident, field_ident, field_type }: &ComponentParameters,
-    schema_impl: &mut TokenStream2,
-    markups: &mut Vec<TokenStream2>,
-) {
-    // FIXME
+        noop_data,
+        ..
+    } = &parameters;
+
     let calendar_schema_parameters = quote! {
         CalendarSchemaParameters {
+            day_prefix: #day_prefix,
+            weekday_prefix: #weekday_prefix,
             previous_year_data: #prev_year,
             next_year_data: #next_year,
             previous_month_data: #prev_month,
             next_month_data: #next_month,
-            noop_data: #NOOP_DATA,
-            day_prefix: "d_",
-            weekday_prefix: "w_"
+            noop_data: #noop_data,
         }
     };
 
-    schema_impl.extend(quote! {
-        .branch(<#field_type>::schema::<#struct_ident>(&#calendar_schema_parameters))
-    });
     markups.push(quote! {
         (
             self.#field_ident.inline_keyboard_markup(&#calendar_schema_parameters, &styles),
             self.#field_ident.size()
         )
     });
+    schema_impl.extend(calendar_schema(schema_types, parameters));
 }
