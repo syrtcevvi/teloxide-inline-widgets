@@ -46,7 +46,19 @@ name = "checkbox_list"
 doc-scrape-examples = true
 
 [[example]]
+name = "styles"
+doc-scrape-examples = true
+
+[[example]]
+name = "buttons"
+doc-scrape-examples = true
+
+[[example]]
 name = "multiple_widgets"
+doc-scrape-examples = true
+
+[[example]]
+name = "calendar"
 doc-scrape-examples = true
 
 [package.metadata.docs.rs]

@@ -7,7 +7,6 @@ use crate::types::Size;
 /// The actual size of the whole [`Layout`] is determined by the size of
 /// provided [`InlineKeyboardMarkup`]s
 pub struct Layout {
-    // FIXME: Allow explicit sizes
     pub markups: Vec<(InlineKeyboardMarkup, Size)>,
     pub orientation: LayoutOrientation,
 }

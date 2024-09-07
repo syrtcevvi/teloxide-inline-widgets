@@ -9,7 +9,7 @@ type HandlerResult = Result<(), Error>;
 type UpdateHandler = teloxide::dispatching::UpdateHandler<Error>;
 
 #[derive(Debug, Clone, Deserialize, Serialize, InlineWidget)]
-#[inline_widget(err_ty = Error, bot_ty = Bot, layout_orientation = LayoutOrientation::Horizontal)]
+#[inline_widget(bot_ty = Bot, err_ty = Error, layout_orientation = LayoutOrientation::Horizontal)]
 struct ButtonsWidget {
     #[button(data = "a", click = say_a)]
     pub say_a: Button,
