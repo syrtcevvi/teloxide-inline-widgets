@@ -164,6 +164,12 @@ impl<T> RadioList<T> {
     }
 }
 
+impl<T> FromIterator<T> for RadioList<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        RadioList::from(iter.into_iter().collect::<Vec<T>>())
+    }
+}
+
 impl<T> From<Vec<T>> for RadioList<T> {
     fn from(value: Vec<T>) -> Self {
         let size = Size::new(1, value.len() as u8);

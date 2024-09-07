@@ -127,6 +127,18 @@ impl<T> CheckboxList<T> {
     }
 }
 
+impl<T> FromIterator<T> for CheckboxList<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        CheckboxList::from(iter.into_iter().map(|item| (false, item)).collect::<Vec<(bool, T)>>())
+    }
+}
+
+impl<T> FromIterator<(bool, T)> for CheckboxList<T> {
+    fn from_iter<I: IntoIterator<Item = (bool, T)>>(iter: I) -> Self {
+        CheckboxList::from(iter.into_iter().collect::<Vec<(bool, T)>>())
+    }
+}
+
 impl<T> From<Vec<T>> for CheckboxList<T> {
     fn from(value: Vec<T>) -> Self {
         let size = Size::new(1, value.len() as u8);

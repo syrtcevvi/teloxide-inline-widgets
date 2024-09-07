@@ -1,7 +1,5 @@
-/*
-    This example demonstrates how to use multiple widgets (`RadioList` and `CheckboxList`) within
-    the user-define widget.
-*/
+//! This example demonstrates how to use multiple widgets (`RadioList`,
+//! `CheckboxList` and `Button`) within the user-define widget.
 use derive_more::Display;
 use teloxide::{dispatching::dialogue::InMemStorage, prelude::*};
 use teloxide_inline_widgets::{prelude::*, types::WidgetStyles, Button, CheckboxList, RadioList};
@@ -24,19 +22,12 @@ enum State {
 #[inline_widget(err_ty = Error, bot_ty = Bot, dialogue_ty = Dialogue)]
 #[inline_widget(state = State::EditingComplexWidget, layout_orientation =  LayoutOrientation::Vertical)]
 struct ComplexWidget {
-    pub shapes_and_options: ShapesAndOptionsComponent,
+    #[radio_list(prefix = "s_")]
+    pub shapes: RadioList<Shape>,
+    #[checkbox_list(prefix = "o_")]
+    pub variants: CheckboxList<Variant>,
     #[button(data = "sb", click = process_save)]
     pub save_button: Button,
-}
-
-#[derive(Debug, Clone, InlineWidget)]
-#[inline_widget(err_ty = Error, bot_ty = Bot, dialogue_ty = Dialogue)]
-#[inline_widget(layout_orientation =  LayoutOrientation::Horizontal)]
-struct ShapesAndOptionsComponent {
-    #[radio_list(prefix = "s_", rows = 3, columns = 1)]
-    pub shapes: RadioList<Shape>,
-    #[checkbox_list(prefix = "o_", rows = 3, columns = 1)]
-    pub variants: CheckboxList<Variant>,
 }
 
 #[derive(Debug, Display, Clone)]
@@ -54,7 +45,6 @@ enum Variant {
     A,
     B,
     C,
-    D
 }
 
 #[tokio::main]
@@ -94,18 +84,12 @@ async fn send_complex_widget(
     message: Message,
     widget_styles: WidgetStyles,
 ) -> HandlerResult {
-    let shapes = RadioList::new([Shape::Square, Shape::Triangle, Shape::Circle], None);
+    let shapes = RadioList::from_iter([Shape::Square, Shape::Triangle, Shape::Circle]);
 
     let variants =
-        CheckboxList::new([(false, Variant::A), (false, Variant::B), (false, Variant::C)]);
+        CheckboxList::from_iter([(false, Variant::A), (false, Variant::B), (false, Variant::C)]);
 
-    let complex_widget = ComplexWidget {
-        shapes_and_options: ShapesAndOptionsComponent {
-            shapes,
-            variants,
-        },
-        save_button: Button::new("Save")
-    };
+    let complex_widget = ComplexWidget { shapes, variants, save_button: Button::new("Save") };
 
     bot.send_message(message.chat.id, "Choose shape and options:")
         .reply_markup(complex_widget.inline_keyboard_markup(&widget_styles))
